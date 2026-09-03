@@ -1884,7 +1884,7 @@ function dur(ms) { return REDUCE ? 0 : ms; }
         S(rod).attr("x", x0).attr("width", w);
         if (k === "ad" && !r.serial) {
           rod.attr("fill", "none").attr("stroke", "var(--muted)").attr("stroke-dasharray", "4 4");
-          dt.attr("class", "dg-note fp-dur").attr("text-anchor", "middle").text(T.par); S(dt).attr("x", (x0 + x1) / 2);
+          dt.attr("class", "dg-note fp-dur").attr("text-anchor", "start").text(T.par); S(dt).attr("x", x1 + 6);
         } else {
           rod.attr("fill", null).attr("stroke", null).attr("stroke-dasharray", null);
           dt.attr("class", "dg-mono fp-dur").attr("text-anchor", "start")

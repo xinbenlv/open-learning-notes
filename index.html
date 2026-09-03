@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open Learning Notes</title>
+<meta name="description" content="Interactive, bilingual lecture notes on computer-science and software-engineering ideas — explained like Feynman, questioned like Socrates.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@600;700&family=Noto+Serif+SC:wght@600;700&family=Noto+Sans:wght@400;500&family=Noto+Sans+SC:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root { --bg:#F6F7F8; --surface:#FFFFFF; --ink:#1C2127; --muted:#5B6572; --line:#D9DEE4; --accent:#C94A1D; --slate:#3D5A75; color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171B; --surface:#1C2127; --ink:#E4E8EC; --muted:#98A2AE; --line:#313943; --accent:#FF8256; --slate:#8FB0CC; } }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"Noto Sans","Noto Sans SC",system-ui,sans-serif; line-height:1.65; }
+  .wrap { max-width:44rem; margin:0 auto; padding:72px 24px 80px; }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:.74rem; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin-bottom:14px; }
+  h1 { font-family:"Noto Serif","Noto Serif SC",Georgia,serif; font-size:2.2rem; line-height:1.25; margin:0 0 12px; text-wrap:balance; }
+  .lede { color:var(--muted); max-width:36em; margin:0 0 40px; }
+  .note { display:block; text-decoration:none; color:inherit; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin-bottom:14px; }
+  .note:hover { border-color:var(--accent); }
+  .note .n { font-family:"IBM Plex Mono",monospace; font-size:.74rem; color:var(--accent); letter-spacing:.12em; }
+  .note h2 { font-family:"Noto Serif","Noto Serif SC",Georgia,serif; font-size:1.2rem; margin:4px 0 6px; }
+  .note p { margin:0; color:var(--muted); font-size:.93rem; }
+  .note .langs { font-family:"IBM Plex Mono",monospace; font-size:.74rem; color:var(--slate); margin-top:10px; }
+  .foot { margin-top:40px; font-size:.86rem; color:var(--muted); }
+  .foot a { color:var(--slate); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Open Learning Notes · 开放学习讲义</div>
+  <h1>Explained like Feynman. Questioned like Socrates.</h1>
+  <p class="lede">Interactive, bilingual lecture notes on important computer-science and software-engineering ideas — figures you operate, not just read. 像费曼一样讲清楚,像苏格拉底一样问到底。</p>
+
+  <a class="note" href="for-you-algorithm/">
+    <div class="n">NOTE 1 · 2026 EDITION</div>
+    <h2>For You Algorithm Notes · 𝕏「为你推荐」算法讲义</h2>
+    <p>How the For You feed ranks posts: the industry cascade, retrieval, Transformer ranking, re-ranking, blending and visibility filtering — with a linked funnel + latency panel, a foldable request-path map, a balance scale for score fusion and a queue-and-bouncer visibility demo. Based on the open-sourced xai-org/x-algorithm.</p>
+    <div class="langs">中文 / English · interactive · single file</div>
+  </a>
+
+  <p class="foot">Contribute a clearer explanation (a Feynman PR) or challenge one (a Socratic Issue) at <a href="https://github.com/xinbenlv/open-learning-notes">github.com/xinbenlv/open-learning-notes</a>. Notes are CC BY 4.0. The series name is provisional.</p>
+</div>
+</body>
+</html>

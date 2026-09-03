@@ -6,11 +6,13 @@ Interactive, bilingual lecture notes on important computer-science and software-
 
 > The series name is provisional; this repository will be renamed once the brand is settled.
 
+Site: **https://xinbenlv.github.io/open-learning-notes/**
+
 ## Notes · 讲义
 
 | # | Title | Languages | Open |
 |---|---|---|---|
-| 1 | **For You Algorithm Notes** · 𝕏「为你推荐」算法讲义 — how the For You feed ranks posts: the industry cascade, retrieval, Transformer ranking, re-ranking, blending, visibility filtering, with a linked funnel + latency panel, a foldable request-path map, a balance scale for score fusion and a queue-and-bouncer visibility demo. Based on the August 2026 open-source release of [xai-org/x-algorithm](https://github.com/xai-org/x-algorithm) (pinned to commit `45b48ba`). | 中文 / English (toggle top-right) | [`for-you-algorithm/`](for-you-algorithm/index.html) |
+| 1 | **For You Algorithm Notes** · 𝕏「为你推荐」算法讲义 — how the For You feed ranks posts: the industry cascade, retrieval, Transformer ranking, re-ranking, blending, visibility filtering, with a linked funnel + latency panel, a foldable request-path map, a balance scale for score fusion and a queue-and-bouncer visibility demo. Based on the August 2026 open-source release of [xai-org/x-algorithm](https://github.com/xai-org/x-algorithm) (pinned to commit `45b48ba`). | 中文 / English (toggle top-right) | [Read online](https://xinbenlv.github.io/open-learning-notes/for-you-algorithm/) · [source](for-you-algorithm/index.html) |
 
 Each note is a single self-contained HTML file: open it in any browser, no build step. Figures follow your light/dark theme.
 
