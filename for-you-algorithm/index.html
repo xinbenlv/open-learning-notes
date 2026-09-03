@@ -1,0 +1,2144 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>For You 算法讲义</title>
+<meta name="description" content="Interactive, bilingual (中文 / English) lecture notes on how the For You feed of 𝕏 ranks posts — candidate retrieval, Transformer ranking, re-ranking, blending and visibility filtering — with explanatory interactive figures.">
+<link rel="license" href="https://creativecommons.org/licenses/by/4.0/">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif:wght@600;700&family=Noto+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Host reset — mirrors the wrapper the Claude Artifact viewer applies, so the page renders identically standalone. */
+  html { color-scheme: light dark; }
+  body { margin: 0; font-family: system-ui, sans-serif; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+<style>
+  :root {
+    --bg: #F6F7F8;
+    --surface: #FFFFFF;
+    --ink: #1C2127;
+    --muted: #5B6572;
+    --line: #D9DEE4;
+    --accent: #C94A1D;
+    --accent-soft: rgba(201, 74, 29, 0.08);
+    --slate: #3D5A75;
+    --slate-soft: rgba(61, 90, 117, 0.08);
+    --good: #2E7D4F;
+    --warn: #96690F;
+    --bad: #B3362B;
+    --code-bg: #EDEFF2;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1C2127;
+      --ink: #E4E8EC;
+      --muted: #98A2AE;
+      --line: #313943;
+      --accent: #FF8256;
+      --accent-soft: rgba(255, 130, 86, 0.1);
+      --slate: #8FB0CC;
+      --slate-soft: rgba(143, 176, 204, 0.12);
+      --good: #5CB884;
+      --warn: #D3A045;
+      --bad: #E06B5D;
+      --code-bg: #242B33;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1C2127;
+    --ink: #E4E8EC;
+    --muted: #98A2AE;
+    --line: #313943;
+    --accent: #FF8256;
+    --accent-soft: rgba(255, 130, 86, 0.1);
+    --slate: #8FB0CC;
+    --slate-soft: rgba(143, 176, 204, 0.12);
+    --good: #5CB884;
+    --warn: #D3A045;
+    --bad: #E06B5D;
+    --code-bg: #242B33;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 47rem;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  h1, h2, h3 {
+    font-family: "Noto Serif SC", "Songti SC", serif;
+    line-height: 1.35;
+    text-wrap: balance;
+    margin: 0;
+  }
+  h1 { font-size: 2.5rem; font-weight: 700; letter-spacing: 0.02em; }
+  h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.75rem; }
+  h3 { font-size: 1.13rem; font-weight: 600; margin: 2rem 0 0.5rem; }
+  p { margin: 0 0 1em; }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.86em;
+  }
+  code {
+    background: var(--code-bg);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  a { color: var(--slate); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:hover { color: var(--accent); }
+  a:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  strong { font-weight: 700; }
+
+  /* 系统代号:X-<Codename> 专用斜体,链接到固定 commit 的代码 */
+  a.cn {
+    font-family: "Noto Serif SC", "Songti SC", serif;
+    font-style: italic;
+    font-weight: 600;
+    font-size: 0.97em;
+    color: var(--slate);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--slate);
+    padding-bottom: 1px;
+    white-space: nowrap;
+  }
+  a.cn:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .en {
+    font-size: 0.86em;
+    color: var(--muted);
+    letter-spacing: 0.01em;
+  }
+
+  /* ── 语言切换 ── */
+  .lang-bar {
+    position: sticky;
+    top: 12px;
+    z-index: 5;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: -36px;
+    pointer-events: none;
+  }
+  .seg {
+    pointer-events: auto;
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px;
+  }
+  .lang-bar .seg { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06); }
+  .seg button, .btn {
+    font: 500 0.8rem/1 "Noto Sans", "Noto Sans SC", sans-serif;
+    color: var(--muted);
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    padding: 7px 14px;
+    cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--bg);
+  }
+  .seg button:focus-visible, .btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .btn {
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 9px 16px;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+
+  /* ── D3 交互瀑布图 ── */
+  .wf-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .wf-controls .hint { font-size: 0.8rem; color: var(--muted); margin-left: auto; }
+  .wf-figure .fig-scroll { border-radius: 10px 10px 0 0; }
+  .wf-info {
+    font-size: 0.84rem;
+    line-height: 1.6;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 0;
+    border-radius: 0 0 10px 10px;
+    padding: 10px 16px;
+    min-height: 2.6em;
+  }
+  .wf-info b { color: var(--ink); font-weight: 700; }
+  .wf-row { outline: none; }
+  .wf-row:hover .wf-bar, .wf-row:focus-visible .wf-bar { stroke-width: 2.2; }
+  .wf-row:focus-visible .wf-label { fill: var(--accent); }
+  .wf-bar, .wf-dur, .wf-label { transition: opacity 0.25s ease; }
+  .wf-dim .wf-bar, .wf-dim .wf-dur, .wf-dim .wf-label { opacity: 0.22; }
+  .wf-dim .wf-row.lit .wf-bar, .wf-dim .wf-row.lit .wf-dur, .wf-dim .wf-row.lit .wf-label { opacity: 1; }
+  .wf-row .wf-timeout { stroke: var(--bad); stroke-dasharray: 3 3; fill: transparent; }
+  .wf-playhead { stroke: var(--accent); stroke-width: 1.6; }
+  .wf-over { fill: var(--bad); }
+  @media (prefers-reduced-motion: reduce) {
+    .wf-bar, .wf-dur, .wf-label { transition: none; }
+  }
+
+  /* 英文版排版 */
+  .lang[data-lang="en"] {
+    font-family: "Noto Sans", "Noto Sans SC", "Helvetica Neue", sans-serif;
+    line-height: 1.65;
+  }
+  .lang[data-lang="en"] h1,
+  .lang[data-lang="en"] h2,
+  .lang[data-lang="en"] h3,
+  .lang[data-lang="en"] a.cn,
+  .lang[data-lang="en"] figcaption i {
+    font-family: "Noto Serif", "Noto Serif SC", Georgia, serif;
+  }
+  .lang[data-lang="en"] h1 { letter-spacing: -0.01em; }
+  .lang[data-lang="en"] .calc-row { grid-template-columns: 8em 4.5em 1fr 5.2em 6.2em; }
+  .lang[data-lang="en"] .cbar-row { grid-template-columns: 8em 1fr; }
+  @media (max-width: 620px) {
+    .lang[data-lang="en"] .calc-row { grid-template-columns: 7em 4em 1fr 4.6em; }
+  }
+
+  /* ── 封面 ── */
+  header.cover {
+    padding: 72px 0 40px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 48px;
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+  .cover .subtitle {
+    font-size: 1.05rem;
+    color: var(--muted);
+    margin-top: 16px;
+    max-width: 36em;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    margin-top: 28px;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .meta-row .mono { font-size: 0.8rem; }
+  .meta-row b { color: var(--ink); font-weight: 500; }
+
+  /* ── 目录 ── */
+  nav.toc {
+    margin-bottom: 64px;
+  }
+  nav.toc ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 2px;
+  }
+  nav.toc a {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 7px 10px;
+    text-decoration: none;
+    color: var(--ink);
+    border-radius: 6px;
+  }
+  nav.toc a:hover { background: var(--slate-soft); color: var(--ink); }
+  nav.toc .num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.78rem;
+    color: var(--accent);
+    min-width: 1.6em;
+  }
+  nav.toc .hint {
+    margin-left: auto;
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-align: right;
+  }
+  @media (max-width: 560px) { nav.toc .hint { display: none; } }
+
+  /* ── 章节 ── */
+  section.lesson { margin-bottom: 72px; }
+  .lesson-eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.74rem;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  figure {
+    margin: 28px 0;
+  }
+  .fig-scroll {
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px 12px;
+  }
+  .fig-scroll svg {
+    display: block;
+    margin: 0 auto;
+    min-width: 560px;
+    max-width: 100%;
+    height: auto;
+  }
+  figcaption {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 10px;
+    padding: 0 4px;
+  }
+
+  /* SVG 图内文字样式(内联 SVG 继承页面 CSS) */
+  .dg-title { font: 700 13px "Noto Sans SC", sans-serif; fill: currentColor; }
+  .dg-text  { font: 400 12px "Noto Sans SC", sans-serif; fill: currentColor; }
+  .dg-note  { font: 400 11.5px "Noto Sans SC", sans-serif; fill: var(--muted); }
+  .dg-mono  { font: 500 11px "IBM Plex Mono", monospace; fill: var(--muted); }
+  .dg-box   { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
+  .dg-box-soft { fill: var(--slate-soft); stroke: var(--slate); stroke-width: 1.2; }
+  .dg-box-accent { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+  .dg-arrow { stroke: currentColor; stroke-width: 1.3; fill: none; }
+  .dg-arrow-dashed { stroke: var(--muted); stroke-width: 1.2; fill: none; stroke-dasharray: 4 4; }
+  .dg-accent-text { font: 700 13px "Noto Sans SC", sans-serif; fill: var(--accent); }
+
+  /* ── 提示框 ── */
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 20px 0;
+    font-size: 0.93rem;
+  }
+  .callout .label {
+    font-weight: 700;
+    color: var(--accent);
+    margin-right: 0.5em;
+  }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: 0.5em; }
+
+  /* ── 漏斗 ── */
+  .funnel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 20px 0 24px;
+    font-size: 0.9rem;
+  }
+  .funnel .stage {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 16px;
+    text-align: center;
+  }
+  .funnel .stage .n {
+    display: block;
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 500;
+    font-size: 1.05rem;
+  }
+  .funnel .stage .l {
+    display: block;
+    font-size: 0.76rem;
+    color: var(--muted);
+  }
+  .funnel .arr { color: var(--muted); }
+
+  /* ── 表格 ── */
+  .tbl-scroll { overflow-x: auto; margin: 20px 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 14px 8px 0;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th {
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  td.w {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  td.w.pos { color: var(--good); }
+  td.w.neg { color: var(--bad); }
+
+  /* ── 计算器 ── */
+  .calc {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px 24px 18px;
+    margin: 24px 0;
+  }
+  .calc h3 { margin-top: 0; }
+  .calc .calc-sub { font-size: 0.84rem; color: var(--muted); margin-bottom: 18px; }
+  .calc-row {
+    display: grid;
+    grid-template-columns: 6.2em 4.5em 1fr 5.2em 6.2em;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 0;
+    font-size: 0.88rem;
+  }
+  @media (max-width: 620px) {
+    .calc-row { grid-template-columns: 5.5em 4em 1fr 4.6em; }
+    .calc-row .contrib { display: none; }
+  }
+  .calc-row .name { font-weight: 500; }
+  .calc-row .wt {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .calc-row .wt.pos { color: var(--good); }
+  .calc-row .wt.neg { color: var(--bad); }
+  .calc-row input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    margin: 0;
+  }
+  .calc-row .pv {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--muted);
+  }
+  .calc-row .contrib {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .calc-row .contrib.pos { color: var(--good); }
+  .calc-row .contrib.neg { color: var(--bad); }
+  .calc-bars {
+    margin: 14px 0 4px;
+    display: grid;
+    gap: 4px;
+  }
+  .cbar-row {
+    display: grid;
+    grid-template-columns: 6.2em 1fr;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .cbar-track {
+    position: relative;
+    height: 12px;
+  }
+  .cbar-track::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -2px;
+    bottom: -2px;
+    width: 1px;
+    background: var(--line);
+  }
+  .cbar {
+    position: absolute;
+    top: 1px;
+    height: 10px;
+    border-radius: 2px;
+    transition: width 0.15s ease, left 0.15s ease;
+  }
+  .cbar.pos { left: 50%; background: var(--good); }
+  .cbar.neg { right: 50%; background: var(--bad); }
+  @media (prefers-reduced-motion: reduce) {
+    .cbar { transition: none; }
+  }
+  .calc-total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-top: 1px solid var(--line);
+    margin-top: 16px;
+    padding-top: 14px;
+  }
+  .calc-total .lbl { font-weight: 700; }
+  .calc-total .val {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 1.5rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .calc-total .val.pos { color: var(--good); }
+  .calc-total .val.neg { color: var(--bad); }
+
+  /* ── 判定 chip ── */
+  .verdicts { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
+  .verdict {
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.86rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    flex: 1 1 160px;
+  }
+  .verdict b {
+    display: block;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+  .verdict.allow b { color: var(--good); }
+  .verdict.inter b { color: var(--warn); }
+  .verdict.drop b { color: var(--bad); }
+  .verdict span { color: var(--muted); font-size: 0.82rem; }
+
+  /* ── 列表 ── */
+  ul.tight, ol.tight { padding-left: 1.3em; margin: 0.5em 0 1em; }
+  ul.tight li, ol.tight li { margin-bottom: 0.45em; }
+  ol.quiz { padding-left: 1.5em; margin: 0.5em 0; }
+  ol.quiz li { margin-bottom: 0.9em; }
+  ol.quiz .ans {
+    display: block;
+    font-size: 0.86rem;
+    color: var(--muted);
+    margin-top: 0.2em;
+  }
+
+  footer.end {
+    border-top: 1px solid var(--line);
+    padding-top: 28px;
+    font-size: 0.84rem;
+    color: var(--muted);
+  }
+  /* ── 解释型交互图通用 ── */
+  .ix-figure .fig-scroll { border-radius: 10px 10px 0 0; }
+  .crumb {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .ix-title {
+    font-family: "Noto Serif SC", "Songti SC", serif;
+    font-size: 1.02rem;
+    font-weight: 700;
+    line-height: 1.5;
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+  .lang[data-lang="en"] .ix-title { font-family: "Noto Serif", Georgia, serif; }
+  .ix-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-bottom: 10px;
+    font-size: 0.82rem;
+  }
+  .ix-controls label { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); }
+  .ix-controls label b { color: var(--ink); font-weight: 500; }
+  .ix-controls input[type="range"] { width: 110px; accent-color: var(--accent); margin: 0; }
+  .ix-controls input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+  .ix-controls select {
+    font: inherit;
+    font-size: 0.8rem;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 4px 8px;
+  }
+  .ix-controls .mono { font-size: 0.8rem; min-width: 3.4em; }
+  .ix-info {
+    font-size: 0.84rem;
+    line-height: 1.6;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 0;
+    border-radius: 0 0 10px 10px;
+    padding: 10px 16px;
+    min-height: 2.6em;
+  }
+  .ix-info b { color: var(--ink); font-weight: 700; }
+  .ix-info .bad { color: var(--bad); font-weight: 500; }
+
+  /* 漏斗 + 延迟面板 */
+  .fp-row { outline: none; }
+  .fp-row.removable { cursor: pointer; }
+  .fp-row:hover .fp-band, .fp-row:focus-visible .fp-band, .fp-row:hover .fp-rod, .fp-row:focus-visible .fp-rod { stroke-width: 2.2; }
+  .fp-row.ghost .fp-band, .fp-row.ghost .fp-rod { fill: transparent; stroke: var(--muted); stroke-dasharray: 4 4; }
+  .fp-row.ghost text { fill: var(--muted); }
+  .fp-band, .fp-rod, .fp-row text { transition: opacity 0.25s ease; }
+  .fp-dim .fp-row:not(.chain) .fp-rod, .fp-dim .fp-row:not(.chain) .fp-dur { opacity: 0.18; }
+  .fp-dot { fill: var(--accent); }
+  .fp-dot.over { fill: var(--bad); }
+  .fp-over { fill: var(--bad); }
+
+  /* 请求路径总图:折叠 / 对照 / 跟踪 */
+  .rp-stage, .rp-src { transition: opacity 0.3s ease; }
+  .rp-focus .rp-stage:not(.on), .rp-focus .rp-src:not(.on) { opacity: 0.18; }
+  .rp-stage.hit > rect, .rp-src.hit > rect { stroke: var(--accent); stroke-width: 2.2; }
+  .rp-map { opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
+  .rp-mapon .rp-map { opacity: 1; }
+  .rp-link { cursor: pointer; }
+  .rp-link:hover text, .rp-link:focus-visible text { fill: var(--accent); text-decoration: underline; }
+
+  /* 天平 */
+  .bs-pan { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
+  .bs-beam { stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
+  .bs-string { stroke: var(--muted); stroke-width: 1; }
+
+  /* 队列与门卫 */
+  .bq-tile rect { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; transition: opacity 0.3s ease; }
+  .bq-tile.hero rect { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.6; }
+  .bq-tile.dropped rect { fill: transparent; stroke-dasharray: 4 4; }
+  .bq-tile.dropped text { fill: var(--muted); }
+  .bq-cover { fill: var(--warn); opacity: 0.18; }
+  .bq-verdict { font: 700 12px "IBM Plex Mono", monospace; }
+  .bq-verdict.allow { fill: var(--good); }
+  .bq-verdict.inter { fill: var(--warn); }
+  .bq-verdict.drop { fill: var(--bad); }
+  .bq-check { font: 400 12px "Noto Sans SC", sans-serif; fill: currentColor; }
+  .bq-check.fired { fill: var(--accent); font-weight: 700; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fp-band, .fp-rod, .fp-row text, .rp-stage, .rp-src, .rp-map, .bq-tile rect { transition: none; }
+  }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="lang-bar">
+  <div class="seg" role="group" aria-label="Language / 语言">
+    <button type="button" data-set-lang="zh" aria-pressed="true">中文</button>
+    <button type="button" data-set-lang="en" aria-pressed="false">English</button>
+  </div>
+</div>
+
+<div class="lang" data-lang="zh">
+
+<header class="cover">
+  <div class="eyebrow">开源代码精读 · 课件</div>
+  <h1>For You 算法讲义</h1>
+  <p class="subtitle">𝕏(推特)「为你推荐」信息流的完整链路:候选从哪来、Transformer 怎么打分、安全系统如何决定一条帖子能不能被看见 —— 基于 xai-org/x-algorithm 2026 年 8 月开源版本,按行业通用的「召回 → 粗排 → 精排 → 重排 → 混排」漏斗术语讲解。</p>
+  <div class="meta-row">
+    <span>代码仓库 <b class="mono">github.com/xai-org/x-algorithm</b></span>
+    <span>技术栈 <b>Rust · JAX</b></span>
+    <span>许可 <b>Apache 2.0</b></span>
+  </div>
+</header>
+
+<nav class="toc" aria-label="目录">
+  <ol>
+    <li><a href="#l0"><span class="num">1</span>行业范式:经典级联漏斗<span class="hint">召回 · 粗排 · 精排 · 重排 · 混排</span></a></li>
+    <li><a href="#l1"><span class="num">2</span>𝕏 的全景:一条请求的旅程<span class="hint">𝕏-Home Mixer 九个阶段</span></a></li>
+    <li><a href="#l2"><span class="num">3</span>召回:数百万 → 数百<span class="hint">In-Network · OON · 双塔 ANN</span></a></li>
+    <li><a href="#l3"><span class="num">4</span>精排与融合:Σ 权重 × 概率<span class="hint">多目标预估 + 交互计算器</span></a></li>
+    <li><a href="#l4"><span class="num">5</span>可见性:排序之外的另一套系统<span class="hint">打标签链路与三种判定</span></a></li>
+    <li><a href="#l5"><span class="num">6</span>设计取舍<span class="hint">为什么这样设计</span></a></li>
+    <li><a href="#l6"><span class="num">7</span>动手实践与思考题<span class="hint">单卡训练一个 nano 模型</span></a></li>
+  </ol>
+</nav>
+
+<!-- ═══════════════ 第 1 讲 ═══════════════ -->
+<section class="lesson" id="l0">
+  <div class="lesson-eyebrow">第 1 讲</div>
+  <h2>行业范式:经典级联漏斗</h2>
+  <p>先建立参照系。今天各家信息流产品 —— 抖音/TikTok、小红书、YouTube、Instagram Reels —— 的推荐系统,基本都收敛到同一套<strong>级联排序架构<span class="en">(cascade ranking)</span></strong>:用一层比一层重的模型,把候选量级一级级压下来,让最贵的模型只算最少的帖子。下面这块面板把「量级」和「延迟」放在同一个状态里:上半是漏斗(每层看到多少条),下半是同一状态下的延迟瀑布(每步花多少毫秒)。我们的主角是一条叫 <b>№4711</b> 的帖子,它会在后面每张图里出现。</p>
+
+  <figure class="ix-figure" data-fp data-lang="zh">
+    <div class="crumb">地图 · 行业范式 › 漏斗 → 延迟 · 主角:帖子 №4711</div>
+    <p class="ix-title">粗排存在的理由:让重模型只看到最少的帖子。总延时 = 最长的那根串行链。</p>
+    <div class="ix-controls">
+      <label><b>全库</b><input type="range" data-fp-corpus min="6" max="9" step="0.5" value="8" aria-label="全库量级"><span class="mono" data-fp-corpus-v>10⁸</span></label>
+      <label><b>召回产出</b><input type="range" data-fp-ret min="3" max="5" step="0.25" value="4" aria-label="召回产出量级"><span class="mono" data-fp-ret-v>10⁴</span></label>
+      <label><b>精排模型</b><select data-fp-model aria-label="精排模型"><option value="0.0005">内积 · 0.0005 ms/条</option><option value="0.005">浅层 DNN · 0.005 ms/条</option><option value="0.05" selected>Transformer · 0.05 ms/条</option></select></label>
+      <label><input type="checkbox" data-fp-prerank checked><b>有粗排层</b></label>
+      <label><input type="checkbox" data-fp-adspar checked><b>广告并行</b></label>
+      <div class="seg" role="group" aria-label="分位"><button type="button" data-fp-sc="p50" aria-pressed="true">P50</button><button type="button" data-fp-sc="p99" aria-pressed="false">P99</button></div>
+    </div>
+    <div class="fig-scroll"><svg class="fp-svg" viewBox="0 0 900 660" role="img" aria-label="漏斗与延迟联动面板:上半为各层候选量的对数漏斗,下半为同一状态下的延迟瀑布;可移除粗排层、改变全库与召回量级、切换精排模型与广告并行,观察精排耗时与预算变化"></svg></div>
+    <div class="ix-info" data-fp-info data-nod3="图表依赖 D3 库,当前环境未能加载。"></div>
+    <figcaption>图 1 · 漏斗与延迟联动面板(行业典型值,示意)。上半对数轴、下半线性轴;点击「粗排」那一行可以把它移出 / 放回,虚线残影提醒它原本在哪。先猜后看:关掉粗排之前,先猜精排那根杆会变多长。</figcaption>
+  </figure>
+
+  <p>各层职责一句话:<strong>召回</strong>负责「别漏」(高召回率,宁滥勿缺),<strong>粗排</strong>负责「省钱」(轻模型控制精排算力),<strong>精排</strong>负责「排准」(重模型逐条预估),<strong>重排</strong>负责「好看」(多样性与业务规则),<strong>混排</strong>负责「营收与生态」(广告与运营内容)。各家叫法略有差异:粗排也叫轻排 / L1,精排也叫 L2 / Heavy Ranker。</p>
+
+  <h3>延迟分账:从下拉到内容出现</h3>
+  <p>面板下半就是延迟预算的分账。用户下拉刷新的忍耐上限决定了体感总延时:典型请求(P50)约 400ms,尾部(P99)可到 800ms;服务端排序预算按 P99 设,约 300ms。三个让账面 ≠ 体感的机制,都能在面板上亲手验证:</p>
+  <ul class="tight">
+    <li><strong>墙钟时间不是各阶段之和。</strong>多路召回并行、广告与自然内容并行(把「广告并行」关掉,总延时立刻多出一截)。悬停任一行,会高亮它的上游串行链 —— 只有这条链决定墙钟。</li>
+    <li><strong>预算按 P99 设,靠降级兜底。</strong>切到 P99,网络两头和每个阶段都变长;超预算时括线变红并标出降级手段:丢弃超时的召回通道、精排回退粗排分。</li>
+    <li><strong>最好的延迟是没有延迟。</strong>「下拉秒出」多半是预取:上一次请求时已经准备好下一页,刷新时先展示缓存再后台补新 —— 这 400ms 被挪到了用户看不见的时刻。</li>
+  </ul>
+  <p>反过来读,这张分账表就是架构的成因:精排在关键路径上只分到约 100ms,所以必须单卡毫秒级(把精排模型切到 Transformer 再关掉粗排,看它怎么把预算撑破);召回只分到约 50ms,所以必须亚线性(双塔 + ANN)。带着这个参照系,下一讲看 𝕏 的实际实现 —— 它与范式的几处偏离,恰恰是最值得学的部分。</p>
+</section>
+
+<!-- ═══════════════ 第 2 讲 ═══════════════ -->
+<section class="lesson" id="l1">
+  <div class="lesson-eyebrow">第 2 讲</div>
+  <h2>𝕏 的全景:一条请求的旅程</h2>
+  <p>每次下拉刷新 For You,都由信息流服务 <a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer">𝕏-Home&nbsp;Mixer</a>(Rust)<strong>现场组装</strong>一条时间线。它构建在 <a href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/candidate-pipeline"><code>candidate-pipeline</code></a> 框架上,把工作拆成标准化的阶段 —— 来源、水合、过滤、打分、选择、副作用 —— 能并行的阶段并行执行。对照上一讲的经典漏斗,𝕏 的链路是 <strong>召回 → 精排 → 重排 → 混排</strong>,外加水合与两道过滤 —— 注意少了粗排,后面会解释为什么。先看全景,后面各讲逐段展开:</p>
+
+    <figure class="ix-figure" data-rp data-lang="zh">
+    <div class="crumb">地图 · 𝕏 请求路径(总图)· ②⑤⑦ 的标题可点击跳到对应讲次</div>
+    <p class="ix-title">排序决定顺序,可见性决定能否展示 —— 两条线直到 ⑦ 才相遇。</p>
+    <div class="ix-controls">
+      <div class="seg" role="group" aria-label="聚焦"><button type="button" data-rp-focus="all" aria-pressed="true">全部</button><button type="button" data-rp-focus="rank" aria-pressed="false">排序线</button><button type="button" data-rp-focus="vis" aria-pressed="false">可见性线</button></div>
+      <label><input type="checkbox" data-rp-map><b>对照行业漏斗</b></label>
+      <label><b>跟踪 №4711 来自</b><select data-rp-track aria-label="跟踪来源"><option value="">—</option><option value="thunder">Thunder(关注内)</option><option value="phoenix">Phoenix 召回(关注外)</option><option value="simclusters">SimClusters(关注外)</option></select></label>
+    </div>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 760 964" class="rp-svg" role="img" aria-label="For You 请求路径:从请求出发,依次经过查询水合、并行召回、特征水合、打分前过滤、精排、Top-K 截断、排序后过滤、混排,最终产出时间线;可折叠到排序线或可见性线,可对照行业漏斗,可跟踪一条帖子">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="arrMuted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker>
+      </defs>
+
+      <g class="rp-stage" data-st="0" data-line="rank">
+        <rect x="230" y="4" width="220" height="36" rx="18" class="dg-box"/>
+        <text x="340" y="27" text-anchor="middle" class="dg-title">For You 信息流请求</text>
+        <line x1="340" y1="40" x2="340" y2="62" class="dg-arrow" marker-end="url(#arr)"/>
+      </g>
+
+      <g class="rp-stage" data-st="1" data-line="rank">
+        <rect x="70" y="66" width="540" height="62" rx="8" class="dg-box"/>
+        <text x="90" y="92" class="dg-title">① 查询水合 <tspan class="dg-mono">Query Hydration</tspan></text>
+        <text x="90" y="113" class="dg-note">观看者最近的行为序列(模型主输入)· 关注列表 · 拉黑/静音 · 屏蔽词 · 已看过</text>
+        <line x1="340" y1="128" x2="340" y2="150" class="dg-arrow" marker-end="url(#arr)"/>
+      </g>
+
+      <g class="rp-stage" data-st="2" data-line="rank">
+        <rect x="70" y="154" width="540" height="140" rx="8" class="dg-box"/>
+        <a href="#l2" class="rp-link"><text x="90" y="180" class="dg-title">② 召回 <tspan class="dg-mono">Candidate Retrieval</tspan><tspan class="dg-note">(多通道并行 · 第 3 讲)</tspan></text></a>
+        <g class="rp-src" data-src="thunder">
+          <rect x="90" y="194" width="240" height="84" rx="6" class="dg-box-soft"/>
+          <text x="106" y="218" class="dg-text" style="font-weight:700">关注内 <tspan class="dg-mono">In-Network</tspan></text>
+          <text x="106" y="238" class="dg-note"><tspan style="font-style:italic">𝕏-Thunder</tspan>:关注账号的</text>
+          <text x="106" y="256" class="dg-note">近期帖子(常驻内存)</text>
+        </g>
+        <g class="rp-src" data-src="oon">
+          <rect x="350" y="194" width="240" height="84" rx="6" class="dg-box-soft"/>
+          <text x="366" y="218" class="dg-text" style="font-weight:700">关注外 <tspan class="dg-mono">Out-of-Network</tspan></text>
+          <text x="366" y="238" class="dg-note"><tspan style="font-style:italic">𝕏-Phoenix</tspan> 召回:双塔 ANN 检索</text>
+          <text x="366" y="256" class="dg-note"><tspan style="font-style:italic">𝕏-SimClusters</tspan>:互动聚类相似</text>
+        </g>
+        <line x1="340" y1="294" x2="340" y2="322" class="dg-arrow" marker-end="url(#arr)"/>
+        <text x="352" y="313" class="dg-mono">合并 ≈ 数千条</text>
+      </g>
+
+      <g class="rp-stage" data-st="3" data-line="rank">
+        <rect x="70" y="326" width="540" height="52" rx="8" class="dg-box"/>
+        <text x="90" y="350" class="dg-title">③ 特征水合 <tspan class="dg-mono">Feature Hydration</tspan></text>
+        <text x="90" y="369" class="dg-note">帖子正文与媒体 · 作者信息与账号标签 · 互动计数 · 语言</text>
+        <line x1="340" y1="378" x2="340" y2="400" class="dg-arrow" marker-end="url(#arr)"/>
+      </g>
+
+      <g class="rp-stage" data-st="4" data-line="rank">
+        <rect x="70" y="404" width="540" height="52" rx="8" class="dg-box"/>
+        <text x="90" y="428" class="dg-title">④ 打分前过滤 <tspan class="dg-mono">Pre-scoring Filters</tspan></text>
+        <text x="90" y="447" class="dg-note">跨来源去重 · 超 48 小时 · 自己的帖子 · 拉黑/静音 · 屏蔽词 · 已看过/已下发</text>
+        <line x1="340" y1="456" x2="340" y2="484" class="dg-arrow" marker-end="url(#arr)"/>
+        <text x="352" y="475" class="dg-mono">剩 ≈ 数百条</text>
+      </g>
+
+      <g class="rp-stage" data-st="5" data-line="rank">
+        <rect x="70" y="488" width="540" height="118" rx="8" class="dg-box-accent"/>
+        <a href="#l3" class="rp-link"><text x="90" y="514" class="dg-accent-text">⑤ 精排 <tspan class="dg-mono" style="fill:var(--accent)">Ranking</tspan>(第 4 讲)</text></a>
+        <text x="90" y="537" class="dg-text"><tspan style="font-weight:700">PhoenixScorer</tspan>  多目标预估:Transformer 预测每种行为的概率</text>
+        <text x="90" y="558" class="dg-text"><tspan style="font-weight:700">RankingScorer</tspan>  融合公式加权求和 + 打散 · 关注外降权 · 新作者扶持</text>
+        <text x="90" y="579" class="dg-text"><tspan style="font-weight:700">VMRanker</tspan>  重排(Re-ranking):DPP 换取相邻帖子的多样性</text>
+        <line x1="340" y1="606" x2="340" y2="628" class="dg-arrow" marker-end="url(#arr)"/>
+      </g>
+
+      <g class="rp-stage" data-st="6" data-line="rank">
+        <rect x="70" y="632" width="540" height="46" rx="8" class="dg-box"/>
+        <text x="90" y="661" class="dg-title">⑥ Top-K 截断 <tspan class="dg-note" style="font-weight:400">按最终分排序,取前 K 条</tspan></text>
+        <line x1="340" y1="678" x2="340" y2="700" class="dg-arrow" marker-end="url(#arr)"/>
+      </g>
+
+      <g class="rp-stage" data-st="7" data-line="vis">
+        <rect x="70" y="704" width="540" height="62" rx="8" class="dg-box"/>
+        <a href="#l4" class="rp-link"><text x="90" y="730" class="dg-title">⑦ 排序后过滤 <tspan class="dg-mono">Post-selection Filters</tspan><tspan class="dg-note">(第 5 讲)</tspan></text></a>
+        <text x="90" y="751" class="dg-note">VFFilter 删掉判定 drop 的帖子 · 父帖被删的一并删 · 同一对话只留一支</text>
+        <path d="M 726 735 L 618 735" class="dg-arrow-dashed" marker-end="url(#arrMuted)"/>
+        <text x="672" y="720" text-anchor="middle" class="dg-note">安全标签</text>
+        <text x="672" y="782" text-anchor="middle" class="dg-note">(打标签链路)</text>
+        <line x1="340" y1="766" x2="340" y2="788" class="dg-arrow" marker-end="url(#arr)"/>
+      </g>
+
+      <g class="rp-stage" data-st="8" data-line="none">
+        <rect x="70" y="792" width="540" height="52" rx="8" class="dg-box"/>
+        <text x="90" y="816" class="dg-title">⑧ 混排 <tspan class="dg-mono">Blending</tspan></text>
+        <text x="90" y="835" class="dg-note">排好的帖子 + 广告 · 推荐关注 · 提示卡片,由 BlenderSelector 交错插入</text>
+        <line x1="340" y1="844" x2="340" y2="866" class="dg-arrow" marker-end="url(#arr)"/>
+      </g>
+
+      <g class="rp-stage" data-st="9" data-line="none">
+        <rect x="70" y="870" width="540" height="36" rx="8" class="dg-box" style="stroke-dasharray:4 4"/>
+        <text x="90" y="893" class="dg-note">⑨ 副作用(响应发出后):记录已下发帖子 · 日志</text>
+        <line x1="340" y1="906" x2="340" y2="924" class="dg-arrow" marker-end="url(#arr)"/>
+        <rect x="230" y="926" width="220" height="36" rx="18" class="dg-box"/>
+        <text x="340" y="949" text-anchor="middle" class="dg-title">排好序的 For You 时间线</text>
+      </g>
+
+      <g class="rp-map" aria-hidden="true">
+        <rect x="628" y="213" width="124" height="22" rx="11" class="dg-box-soft"/><text x="690" y="228" text-anchor="middle" class="dg-mono">召回 Retrieval</text>
+        <rect x="628" y="460" width="124" height="22" rx="11" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4 4"/><text x="690" y="475" text-anchor="middle" class="dg-mono">粗排 · 缺位</text>
+        <rect x="628" y="526" width="124" height="22" rx="11" class="dg-box-accent"/><text x="690" y="541" text-anchor="middle" class="dg-mono" style="fill:var(--accent)">精排 + 融合</text>
+        <rect x="628" y="568" width="124" height="22" rx="11" class="dg-box-soft"/><text x="690" y="583" text-anchor="middle" class="dg-mono">重排 Re-rank</text>
+        <rect x="628" y="806" width="124" height="22" rx="11" class="dg-box-soft"/><text x="690" y="821" text-anchor="middle" class="dg-mono">混排 Blending</text>
+      </g>
+    </svg>
+    </div>
+    <div class="ix-info" data-rp-info></div>
+    <figcaption>图 2 · 𝕏 的请求路径(总图)。每个阶段都可以独立开关,默认值在 <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer/params/param.rs"><code>home-mixer/params/param.rs</code></a>,官方用 cron 脚本把仓库默认值同步为线上生产值。</figcaption>
+  </figure>
+
+  <h3>行业漏斗术语对照</h3>
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th>行业环节</th><th>英文</th><th>本系统对应</th></tr></thead>
+    <tbody>
+      <tr><td><strong>召回</strong></td><td class="mono">Candidate Retrieval</td><td><a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/thunder">𝕏-Thunder</a>(关注内)· <a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix">𝕏-Phoenix</a> 召回 · <a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/simclusters">𝕏-SimClusters</a>(关注外)</td></tr>
+      <tr><td><strong>粗排</strong></td><td class="mono">Pre-ranking / Light Ranking</td><td><strong>没有独立粗排层</strong> —— 召回已把量级压到数千,规则过滤到数百后精排直接吃下</td></tr>
+      <tr><td><strong>精排</strong></td><td class="mono">(Heavy) Ranking</td><td><a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix">𝕏-Phoenix</a> 排序模型:pointwise 多目标互动预估</td></tr>
+      <tr><td><strong>融合</strong></td><td class="mono">Score Fusion / Value Model</td><td><a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer/scorers/ranking_scorer.rs"><code>RankingScorer</code></a> 加权求和 + 三项调整</td></tr>
+      <tr><td><strong>重排</strong></td><td class="mono">Re-ranking</td><td><a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/vm-ranker">𝕏-VMRanker</a>:DPP 多样性重排;同作者打散</td></tr>
+      <tr><td><strong>混排</strong></td><td class="mono">Blending</td><td>Blending Pipeline:广告、推荐关注等非帖子内容的插入</td></tr>
+      <tr><td><strong>特征水合</strong></td><td class="mono">Feature Hydration</td><td>Query / Candidate Hydrators(①③ 两个阶段)</td></tr>
+      <tr><td><strong>内容安全</strong></td><td class="mono">Trust &amp; Safety</td><td><a href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/visibility-filtering"><code>visibility-filtering</code></a> + 打标签链路(第 5 讲)</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>唯一「对不上」的环节值得琢磨:多数大厂在召回和精排之间放一个轻量粗排模型,先把几千条筛到几百条再上重模型。𝕏 用「强召回 + 规则过滤」直接对接精排 —— 候选隔离让精排打分可缓存(第 6 讲),重模型吃几百条的成本可以接受,粗排层就省了。</p>
+
+  <p>记住一个贯穿全课的分工:<strong>排序决定顺序,可见性决定能否展示</strong>。第 ⑤ 步的模型只管「你有多可能喜欢它」;第 ⑦ 步引用的是另一套完全独立的内容安全系统(第 5 讲),两者输入不同、规则不同、服务也不同。</p>
+</section>
+
+<!-- ═══════════════ 第 3 讲 ═══════════════ -->
+<section class="lesson" id="l2">
+  <div class="lesson-eyebrow">第 3 讲</div>
+  <h2>召回<span class="en">(Candidate Retrieval)</span>:数百万 → 数百</h2>
+
+  <div class="funnel" role="img" aria-label="候选漏斗:全站数百万帖子,召回后剩数千,过滤后数百,最终取前 K 条">
+    <div class="stage"><span class="n">数百万</span><span class="l">全站近期帖子</span></div>
+    <span class="arr">→</span>
+    <div class="stage"><span class="n">数千</span><span class="l">三路来源合并</span></div>
+    <span class="arr">→</span>
+    <div class="stage"><span class="n">数百</span><span class="l">过滤后进入打分</span></div>
+    <span class="arr">→</span>
+    <div class="stage"><span class="n">Top K</span><span class="l">进入你的时间线</span></div>
+  </div>
+
+  <p>三条召回通道<span class="en">(retrieval channels)</span>并行取货:</p>
+  <ul class="tight">
+    <li><a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/thunder">𝕏-Thunder</a> —— <strong>关注内召回<span class="en">(In-Network)</span></strong>:帖子发布时就写进内存,请求来时直接返回你关注账号的近期帖子。它还会接收「已看过」列表,提前剔除。</li>
+    <li><a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix">𝕏-Phoenix</a> 召回 —— <strong>关注外<span class="en">(Out-of-Network,OON)</span>模型召回</strong>:双塔模型<span class="en">(Two-Tower)</span>做近似最近邻检索<span class="en">(ANN)</span>,是「破圈」内容的主力,详见下图。</li>
+    <li><a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/simclusters">𝕏-SimClusters</a> —— <strong>关注外协同召回</strong>:按「谁和谁互动同样的内容」给账号与帖子做协同过滤式聚类,再用簇的相似度找候选。</li>
+  </ul>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 680 330" role="img" aria-label="双塔召回:用户塔把互动历史编码成用户向量,候选塔把语义 ID 编码成帖子向量,两者做近邻检索,从数百万候选缩到数百条">
+      <defs>
+        <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <rect x="30" y="40" width="230" height="118" rx="8" class="dg-box-soft"/>
+      <text x="48" y="66" class="dg-title">用户塔</text>
+      <text x="48" y="90" class="dg-note">输入:互动历史序列</text>
+      <text x="48" y="110" class="dg-note">+ 粗粒度画像(国家 / 语言)</text>
+      <text x="48" y="134" class="dg-text">输出:用户向量 <tspan class="dg-mono">[D]</tspan></text>
+
+      <rect x="420" y="40" width="230" height="118" rx="8" class="dg-box-soft"/>
+      <text x="438" y="66" class="dg-title">候选塔</text>
+      <text x="438" y="90" class="dg-note">输入:语义 ID(6 层 × 256 码)</text>
+      <text x="438" y="110" class="dg-note">+ 作者 ID 哈希</text>
+      <text x="438" y="134" class="dg-text">输出:帖子索引 <tspan class="dg-mono">[N × D]</tspan></text>
+
+      <line x1="260" y1="99" x2="296" y2="99" class="dg-arrow" marker-end="url(#arr2)"/>
+      <line x1="420" y1="99" x2="384" y2="99" class="dg-arrow" marker-end="url(#arr2)"/>
+      <circle cx="340" cy="99" r="42" class="dg-box-accent"/>
+      <text x="340" y="94" text-anchor="middle" class="dg-text" style="font-weight:700">近邻</text>
+      <text x="340" y="112" text-anchor="middle" class="dg-text" style="font-weight:700">检索</text>
+
+      <text x="438" y="182" class="dg-note">索引随 checkpoint 一起保存,</text>
+      <text x="438" y="200" class="dg-note">服务启动时直接加载</text>
+
+      <line x1="340" y1="141" x2="340" y2="238" class="dg-arrow" marker-end="url(#arr2)"/>
+      <text x="352" y="196" class="dg-mono">数百万 → 数百</text>
+      <rect x="240" y="242" width="200" height="44" rx="8" class="dg-box"/>
+      <text x="340" y="269" text-anchor="middle" class="dg-title">关注外候选帖子</text>
+    </svg>
+    </div>
+    <figcaption>图 3 · <i>𝕏-Phoenix</i> 双塔召回(Two-Tower Retrieval)。两塔独立编码,线上只做一次 ANN 向量检索,所以能扛住数百万量级的候选池。</figcaption>
+  </figure>
+
+  <p>两个值得停下来品的细节:</p>
+  <ul class="tight">
+    <li><strong>召回不用用户 ID 向量</strong>(<code>use_user_embedding=False</code>)。系统几乎完全用「你最近互动过什么」来表示你 —— 你的兴趣画像每天都在被你自己的行为改写,而不是固化在一个学出来的 ID 嵌入里。</li>
+    <li><strong>帖子用「语义 ID」表示</strong><span class="en">(Semantic ID)</span>:把帖子的多模态嵌入量化成 6 层、每层 256 选 1 的残差编码。同主题的帖子共享编码前缀,于是模型对<em>从没见过的新帖</em>也有组合泛化能力 —— 帖子发出的那一刻就能被召回,物品侧没有冷启动<span class="en">(item cold-start)</span>问题。</li>
+  </ul>
+</section>
+
+<!-- ═══════════════ 第 4 讲 ═══════════════ -->
+<section class="lesson" id="l3">
+  <div class="lesson-eyebrow">第 4 讲</div>
+  <h2>精排与融合:Σ 权重 × 概率</h2>
+  <p>进入精排<span class="en">(ranking)</span>的每条帖子,由 <a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix">𝕏-Phoenix</a> 排序模型(一个 Transformer,读你的行为序列作上下文)做<strong>多目标互动预估<span class="en">(multi-task engagement prediction)</span></strong>,逐条<span class="en">(pointwise)</span>输出<strong>约二十种行为各自的概率</strong>:点赞、回复、转发、引用、分享、各类点击、停留时长、关注作者,以及负反馈<span class="en">(negative feedback)</span>类的「不感兴趣」、静音、拉黑、举报。然后 <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer/scorers/ranking_scorer.rs"><code>RankingScorer</code></a> 用一行融合公式<span class="en">(score fusion / value model)</span>合成最终分:</p>
+
+  <div class="callout" style="border-color: var(--slate); background: var(--slate-soft);">
+    <p class="mono" style="font-size: 1rem; text-align: center;">最终分 = Σ ( 权重<sub>i</sub> × P(行为<sub>i</sub>) )</p>
+  </div>
+
+  <p>下面是仓库 2026-08 快照里 <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer/params/param.rs"><code>param.rs</code></a> 的部分真实默认权重(线上以配置系统为准,官方用 cron 把生产值回写到仓库):</p>
+
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th>行为</th><th>权重</th><th>行为</th><th>权重</th></tr></thead>
+    <tbody>
+      <tr><td>回复</td><td class="w pos">+5.0</td><td>举报</td><td class="w neg">−234.0</td></tr>
+      <tr><td>引用</td><td class="w pos">+5.0</td><td>静音作者</td><td class="w neg">−58.8</td></tr>
+      <tr><td>关注作者</td><td class="w pos">+4.0</td><td>不感兴趣</td><td class="w neg">−43.2</td></tr>
+      <tr><td>分享</td><td class="w pos">+2.0</td><td>拉黑作者</td><td class="w neg">−31.2</td></tr>
+      <tr><td>转发</td><td class="w pos">+1.0</td><td>无停留</td><td class="w neg">−0.02</td></tr>
+      <tr><td>点赞</td><td class="w pos">+0.5</td><td>停留时长(连续值)</td><td class="w pos">+0.004</td></tr>
+      <tr><td>点击</td><td class="w pos">+0.4</td><td>停留(二值)</td><td class="w pos">+0.05</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout">
+    <p><span class="label">常见误读</span>权重乘的是<strong>你自己的预测概率</strong>,不是原始互动数。看到举报权重是点赞的 468 倍,就推出「1 个举报抵消 468 个赞」是错的 —— 举报本来就是比点赞罕见得多的行为,概率基线低几个数量级,大权重只是让这个稀有信号有机会影响排序。README 和代码注释都专门澄清了这一点。</p>
+  </div>
+
+  <div class="calc" data-lang="zh">
+    <h3>动手算一算</h3>
+    <p class="calc-sub">拖动滑杆,设定模型对「你」在这条帖子上各行为的预测概率,看最终分怎么变。权重取自 <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer/params/param.rs"><code>param.rs</code></a> 真实默认值。</p>
+    <div class="calc-rows"></div>
+    <div class="calc-bars" aria-hidden="true"></div>
+    <div class="calc-total">
+      <span class="lbl">最终分</span>
+      <span class="val calc-total-val">0.000</span>
+    </div>
+  </div>
+
+  <figure class="ix-figure" data-bs data-lang="zh">
+    <div class="crumb">地图 · 𝕏 请求路径 › ⑤ 精排 › 融合公式 · 主角:№4711</div>
+    <p class="ix-title">权重是价格,不是选票:一次稀有的举报,能压过一堆便宜的点赞。</p>
+    <div class="fig-scroll"><svg class="bs-svg" viewBox="0 0 640 250" role="img" aria-label="天平:左盘是主角帖 №4711 的最终分,由上方滑杆控制;右盘是对照帖的固定最终分;拖动滑杆,天平随两者之差倾斜"></svg></div>
+    <div class="ix-info" data-bs-info></div>
+    <figcaption>图 4 · 左盘是主角帖 №4711(受上方滑杆控制),右盘是对照帖(固定:点赞 8%、回复 1%、转发 2%、关注 0.3%、不感兴趣 0.15%、举报 0.003%,合计 +0.050)。先猜后看:把「举报」从 0.02% 拖到 0.10%,天平会翻向对照帖吗?</figcaption>
+  </figure>
+
+  <p>融合之后还有三个业务调整,再进入重排<span class="en">(re-ranking)</span>:</p>
+  <ul class="tight">
+    <li><strong>同作者打散<span class="en">(author diversity)</span></strong>:同一作者第二条起分数乘衰减系数(有下限),避免刷屏。</li>
+    <li><strong>关注外降权<span class="en">(OON discount)</span></strong>:未关注账号的帖子乘一个小于 1 的系数;关注账号的转发和回复同样打折。</li>
+    <li><strong>新作者扶持<span class="en">(冷启动探索,explore)</span></strong>:曝光量低于阈值的作者,帖子被提升到目标位置附近,给新人冷启动机会。</li>
+    <li><strong>多样性重排:<a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/vm-ranker">𝕏-VMRanker</a></strong> —— 独立重排服务,用行列式点过程<span class="en">(DPP)</span>在帖子嵌入上重排:牺牲一点点分数,换相邻帖子之间更低的相似度,你的时间线才不会连着五条同一个话题。</li>
+  </ul>
+</section>
+
+<!-- ═══════════════ 第 5 讲 ═══════════════ -->
+<section class="lesson" id="l4">
+  <div class="lesson-eyebrow">第 5 讲</div>
+  <h2>可见性:排序之外的另一套系统</h2>
+  <p>模型说「你会喜欢」,不代表就能给你看。这部分对应行业里的<strong>内容安全 / 信任与安全<span class="en">(Trust &amp; Safety)</span></strong>体系:一条帖子能否展示,由可见性过滤服务 <a href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/visibility-filtering"><code>visibility-filtering</code></a> 独立裁决,依据是一整条<strong>持续运行的打标签链路</strong> —— 内容理解<span class="en">(content understanding)</span>模型给帖子和账号打分,规则引擎写入安全标签<span class="en">(safety labels)</span>;它不在请求路径上,请求来时只做读取:</p>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 720 540" role="img" aria-label="打标签链路:内容理解模型给帖子和账号打分,规则引擎据此写标签入库,请求路径上的可见性过滤读标签,给出允许、隔层或删除三种判定">
+      <defs>
+        <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <text x="40" y="26" class="dg-title">① 内容理解(持续运行,不在请求路径)</text>
+      <rect x="40" y="40" width="310" height="122" rx="8" class="dg-box"/>
+      <text x="58" y="66" class="dg-text" style="font-weight:700">帖子与媒体</text>
+      <text x="58" y="90" class="dg-note"><tspan class="dg-mono">grox</tspan>  文本/媒体分类(垃圾、成人、暴力)</text>
+      <text x="58" y="112" class="dg-note"><tspan class="dg-mono">media-model-proxy</tspan>  图像/视频模型</text>
+      <text x="58" y="134" class="dg-note"><tspan class="dg-mono">clip</tspan>  媒体嵌入向量</text>
+
+      <rect x="376" y="40" width="310" height="122" rx="8" class="dg-box"/>
+      <text x="394" y="66" class="dg-text" style="font-weight:700">账号</text>
+      <text x="394" y="90" class="dg-note"><tspan class="dg-mono">agatha</tspan>  被拉黑/举报 相对 获赞</text>
+      <text x="394" y="112" class="dg-note"><tspan class="dg-mono">bdsm</tspan>  虚假/滥用行为识别</text>
+      <text x="394" y="134" class="dg-note"><tspan class="dg-mono">user-cred-v2</tspan>  关注图 PageRank</text>
+
+      <line x1="195" y1="162" x2="195" y2="196" class="dg-arrow" marker-end="url(#arr3)"/>
+      <line x1="531" y1="162" x2="531" y2="196" class="dg-arrow" marker-end="url(#arr3)"/>
+
+      <rect x="40" y="200" width="646" height="96" rx="8" class="dg-box"/>
+      <text x="58" y="226" class="dg-title">② 打标签规则</text>
+      <text x="58" y="250" class="dg-note"><tspan class="dg-mono">scarecrow</tspan>  事件驱动:某事件发生 + 条件成立 → 打标签(内嵌 botmaker 规则引擎)</text>
+      <text x="58" y="272" class="dg-note"><tspan class="dg-mono">abuse-enforcement-service</tspan>  按模型分数行动:打标签 / 验证挑战 / 封号</text>
+
+      <line x1="363" y1="296" x2="363" y2="326" class="dg-arrow" marker-end="url(#arr3)"/>
+      <text x="375" y="317" class="dg-note">写入</text>
+
+      <rect x="200" y="330" width="326" height="42" rx="8" class="dg-box"/>
+      <text x="363" y="356" text-anchor="middle" class="dg-title">③ 标签存储</text>
+
+      <line x1="363" y1="372" x2="363" y2="402" class="dg-arrow" marker-end="url(#arr3)"/>
+      <text x="375" y="393" class="dg-note">请求路径上读回</text>
+
+      <rect x="40" y="406" width="646" height="112" rx="8" class="dg-box-accent"/>
+      <text x="58" y="432" class="dg-accent-text">④ 可见性过滤 · 对每条帖子 × 每个观看者裁决</text>
+      <text x="58" y="456" class="dg-note">输入:上面的标签 + 你是否拉黑/静音/关注作者 + 账号状态 + 你的设置与国家</text>
+      <text x="58" y="478" class="dg-note">规则按序评估,第一条回答 drop 的规则即终止</text>
+      <text x="58" y="502" class="dg-text"><tspan style="font-weight:700;fill:var(--good)">ALLOW 正常展示</tspan>   <tspan style="font-weight:700;fill:var(--warn)">INTERSTITIAL 点击才展开</tspan>   <tspan style="font-weight:700;fill:var(--bad)">DROP 不展示</tspan></text>
+    </svg>
+    </div>
+    <figcaption>图 5 · 打标签链路与可见性过滤。图中代号:<i>𝕏-Grox</i>(内容分类)、<i>𝕏-Agatha</i>(账号信誉)、<i>𝕏-BDSM</i>(行为序列风控)、<i>𝕏-UserCred</i>(图谱信誉)、<i>𝕏-Scarecrow</i>/<i>𝕏-Botmaker</i>(规则引擎)。规则清单按评估顺序列在 <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/visibility-filtering/rules/registry.rs"><code>visibility-filtering/rules/registry.rs</code></a>。</figcaption>
+  </figure>
+
+  <div class="verdicts">
+    <div class="verdict allow"><b>ALLOW</b><span>正常展示</span></div>
+    <div class="verdict inter"><b>INTERSTITIAL</b><span>隔层后展示,如成人或血腥媒体,点击可展开</span></div>
+    <div class="verdict drop"><b>DROP</b><span>不展示;其祖先帖被删的回复/引用也一并删</span></div>
+  </div>
+
+  <figure class="ix-figure" data-bq data-lang="zh">
+    <div class="crumb">地图 · 𝕏 请求路径 › ⑦ 排序后过滤 › 可见性裁决 · 主角:№4711</div>
+    <p class="ix-title">排队员排顺序,门卫查名单:拨动「关注」,裁决翻转,队伍顺序纹丝不动。</p>
+    <div class="ix-controls">
+      <label><input type="checkbox" data-bq-follow><b>观看者关注 №4711 的作者</b></label>
+      <label><b>№4711 身上的标签</b><select data-bq-label aria-label="标签"><option value="none">无</option><option value="spam" selected>高召回疑似垃圾</option><option value="adult">成人媒体</option></select></label>
+    </div>
+    <div class="fig-scroll"><svg class="bq-svg" viewBox="0 0 760 250" role="img" aria-label="队列与门卫:六条帖子按精排分数排队,№4711 排第二;右侧门卫按名单裁决,拨动关注开关或更换标签,裁决在 ALLOW、INTERSTITIAL、DROP 之间变化而队列顺序不变"></svg></div>
+    <div class="ix-info" data-bq-info></div>
+    <figcaption>图 6 · 队列按精排分数排好(№4711 排第 2),门卫按 <code>registry.rs</code> 的规则顺序查名单。「仅对推荐生效」的规则只在观看者未关注作者时才会 drop;成人媒体标签给出 INTERSTITIAL,与是否关注无关。</figcaption>
+  </figure>
+
+  <p>一个精细的设计:有一组规则<strong>只对「推荐」生效</strong> —— 仅当帖子来自你未关注的账号时才可能 drop(比如高召回率抓到的疑似垃圾内容),同一条帖子对关注者照常展示。系统宁可少推荐,也不轻易在粉丝面前隐藏内容。</p>
+  <p>配套的透明度工具「<a href="https://x.com/i/under_the_hood" rel="noopener">Under the Hood</a>」让每个人查看自己账号和帖子上影响可见性的标签统计 —— 部分规则文件(如 <a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/grox">𝕏-Grox</a> 的提示词、部分 <a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/botmaker">𝕏-Botmaker</a> 规则)为防对抗没有开源,官方以「代码 + 可查询的结果」组合来补足透明度。</p>
+</section>
+
+<!-- ═══════════════ 第 6 讲 ═══════════════ -->
+<section class="lesson" id="l5">
+  <div class="lesson-eyebrow">第 6 讲</div>
+  <h2>设计取舍</h2>
+  <ul class="tight">
+    <li><strong>多行为预测,而非单一「相关分」。</strong>模型输出约二十个概率,合成是显式、可审计的一步 —— 想调整产品价值观,改的是明文权重,不用重训模型。</li>
+    <li><strong>候选隔离。</strong>排序推理时,候选帖子之间不能互相 attend,只能看观看者上下文。一条帖子的分数不受同批次其他帖子影响,分数因此稳定、可缓存。</li>
+    <li><strong>哈希嵌入,没有词表。</strong>召回和排序都用多个哈希函数查嵌入,新帖、新作者发出即刻可表示,不用维护和更新词表。</li>
+    <li><strong>排序与可见性彻底分离。</strong>不同服务、不同输入、不同规则。安全裁决不会被「用户可能爱看」的分数稀释,反之亦然。</li>
+    <li><strong>管线框架化。</strong><a href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/candidate-pipeline"><code>candidate-pipeline</code></a> 把阶段类型标准化,执行与监控和业务逻辑分离,加一路召回通道或一个过滤器都是插件式的。</li>
+  </ul>
+</section>
+
+<!-- ═══════════════ 第 7 讲 ═══════════════ -->
+<section class="lesson" id="l6">
+  <div class="lesson-eyebrow">第 7 讲</div>
+  <h2>动手实践与思考题</h2>
+  <p>这次开源和 2023 年那次的最大区别:<a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix">𝕏-Phoenix</a> 目录里是<strong>真实的生产训练与推理代码</strong>(JAX 训练 + Rust gRPC 推理引擎),配了确定性的合成数据生成器和单卡 <code>nano</code> 配置(<code>home_direct_packed_nano</code> 精排、<code>xrecsys_two_tower_nano</code> 召回),几分钟就能在一张 GPU 上端到端跑通:训练 → 出 checkpoint → 用生产同款引擎对外服务。入口见 <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix/QUICKSTART.md"><code>phoenix/QUICKSTART.md</code></a> 与 <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix/TRAINING.md"><code>phoenix/TRAINING.md</code></a>。</p>
+
+  <h3>思考题</h3>
+  <ol class="quiz">
+    <li>为什么召回塔不给每个用户学一个 ID 嵌入?如果加上,对「兴趣快速变化的用户」和「僵尸粉画像」各会发生什么?
+      <span class="ans">提示:行为序列是实时的,ID 嵌入是滞后的;ID 嵌入还会给刷量行为一个可被固化利用的载体。</span></li>
+    <li>举报的权重是 −234,点赞是 +0.5。构造一个数值例子,说明为什么这不等于「1 个举报抵 468 个赞」。
+      <span class="ans">提示:代入典型概率,比如 P(点赞)=10%,P(举报)=0.01%,比较两项贡献的绝对值。</span></li>
+    <li>「只对推荐生效、对关注者不生效」的 drop 规则,换成对所有人生效会有什么代价?反过来全部放开呢?
+      <span class="ans">提示:考虑误伤(高召回意味着假阳性)与订阅关系承载的知情选择。</span></li>
+    <li>候选隔离放弃了「批内比较」的信息。如果允许候选互相 attend,分数会怎么不可缓存?listwise 排序的收益该在哪个环节找补?
+      <span class="ans">提示:VMRanker 的 DPP 重排正是在打分之后做批内多样性。</span></li>
+  </ol>
+</section>
+
+<footer class="end">
+  <p>课件依据 <a href="https://github.com/xai-org/x-algorithm" class="mono">xai-org/x-algorithm</a> 2026-08-14 版 README 与源码整理;文中所有代码链接均固定在 commit <a class="mono" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e">45b48ba</a>;权重等数值为仓库快照默认值,线上以配置系统实际值为准。<i>𝕏-Codename</i> 斜体表示 𝕏 公司内部系统代号,行业通用概念以正体中英对照标注。代码采用 Apache 2.0 许可开源。</p>
+</footer>
+
+</div><!-- /zh -->
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!--                          ENGLISH VERSION                        -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="lang" data-lang="en" hidden>
+
+<header class="cover">
+  <div class="eyebrow">Open-source code reading · Lecture notes</div>
+  <h1>For You Algorithm Notes</h1>
+  <p class="subtitle">The full path of 𝕏 (Twitter)'s For You feed: where candidates come from, how a Transformer scores them, and how a separate safety system decides whether a post can be shown at all — based on the August 2026 open-source release of xai-org/x-algorithm, told in the industry's standard Retrieval → Pre-ranking → Ranking → Re-ranking → Blending vocabulary.</p>
+  <div class="meta-row">
+    <span>Repository <b class="mono">github.com/xai-org/x-algorithm</b></span>
+    <span>Stack <b>Rust · JAX</b></span>
+    <span>License <b>Apache 2.0</b></span>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#en-l0"><span class="num">1</span>The industry paradigm: the classic cascade<span class="hint">Retrieval · Pre-ranking · Ranking · Re-ranking · Blending</span></a></li>
+    <li><a href="#en-l1"><span class="num">2</span>𝕏 end to end: the life of a request<span class="hint">nine stages in 𝕏-Home Mixer</span></a></li>
+    <li><a href="#en-l2"><span class="num">3</span>Retrieval: millions → hundreds<span class="hint">In-network · OON · two-tower ANN</span></a></li>
+    <li><a href="#en-l3"><span class="num">4</span>Ranking &amp; fusion: Σ weight × probability<span class="hint">multi-task prediction + calculator</span></a></li>
+    <li><a href="#en-l4"><span class="num">5</span>Visibility: a separate system from ranking<span class="hint">labeling path and three verdicts</span></a></li>
+    <li><a href="#en-l5"><span class="num">6</span>Design decisions<span class="hint">why it is built this way</span></a></li>
+    <li><a href="#en-l6"><span class="num">7</span>Hands-on &amp; discussion questions<span class="hint">train a nano model on one GPU</span></a></li>
+  </ol>
+</nav>
+
+<!-- ═══════════════ Lecture 1 ═══════════════ -->
+<section class="lesson" id="en-l0">
+  <div class="lesson-eyebrow">Lecture 1</div>
+  <h2>The industry paradigm: the classic cascade</h2>
+  <p>First, a frame of reference. Today's feed products — TikTok/Douyin, Xiaohongshu, YouTube, Instagram Reels — have converged on the same <strong>cascade ranking</strong> architecture: a chain of progressively heavier models, each cutting the candidate count by an order of magnitude or two, so the most expensive model only ever sees the fewest posts (Chinese shorthand for the layers: 召回 / 粗排 / 精排 / 重排 / 混排). The panel below keeps "how many" and "how long" in one state: the top half is the funnel (what each layer sees), the bottom half is the latency waterfall of that same state (what each step costs). Our protagonist is a post called <b>№4711</b>; it appears in every figure from here on.</p>
+
+  <figure class="ix-figure" data-fp data-lang="en">
+    <div class="crumb">Map · Industry paradigm › Funnel → Latency · protagonist: post №4711</div>
+    <p class="ix-title">Pre-ranking is what makes the heavy ranker affordable. Total latency is the longest serial chain.</p>
+    <div class="ix-controls">
+      <label><b>Corpus</b><input type="range" data-fp-corpus min="6" max="9" step="0.5" value="8" aria-label="Corpus size"><span class="mono" data-fp-corpus-v>10⁸</span></label>
+      <label><b>Retrieval output</b><input type="range" data-fp-ret min="3" max="5" step="0.25" value="4" aria-label="Retrieval output"><span class="mono" data-fp-ret-v>10⁴</span></label>
+      <label><b>Ranking model</b><select data-fp-model aria-label="Ranking model"><option value="0.0005">dot product · 0.0005 ms/item</option><option value="0.005">shallow DNN · 0.005 ms/item</option><option value="0.05" selected>Transformer · 0.05 ms/item</option></select></label>
+      <label><input type="checkbox" data-fp-prerank checked><b>Pre-ranking layer</b></label>
+      <label><input type="checkbox" data-fp-adspar checked><b>Ads in parallel</b></label>
+      <div class="seg" role="group" aria-label="Percentile"><button type="button" data-fp-sc="p50" aria-pressed="true">P50</button><button type="button" data-fp-sc="p99" aria-pressed="false">P99</button></div>
+    </div>
+    <div class="fig-scroll"><svg class="fp-svg" viewBox="0 0 900 660" role="img" aria-label="Linked funnel and latency panel: the top half is a log-scale funnel of candidates per layer, the bottom half the latency waterfall of the same state; remove the pre-ranking layer, change corpus and retrieval scale, switch the ranking model or ads parallelism, and watch ranking time and the budget respond"></svg></div>
+    <div class="ix-info" data-fp-info data-nod3="This chart needs the D3 library, which could not be loaded here."></div>
+    <figcaption>Fig. 1 · Linked funnel and latency panel (typical industry values, illustrative). Log axis on top, linear axis below; click the "Pre-ranking" row to pull it out or put it back — the dashed ghost marks where it was. Predict, then reveal: before you switch pre-ranking off, guess how long the ranking rod becomes.</figcaption>
+  </figure>
+
+  <p>Each layer in one line: <strong>retrieval</strong> must not miss (high recall — err on the side of too many), <strong>pre-ranking</strong> saves money (a light model protects the heavy model's compute), <strong>ranking</strong> gets the order right (heavy model, per-item prediction), <strong>re-ranking</strong> makes it pleasant (diversity and business rules), and <strong>blending</strong> pays the bills and feeds the ecosystem (ads and editorial content). Names vary by company: pre-ranking is also called light ranking / L1, ranking is L2 / the heavy ranker.</p>
+
+  <h3>The latency ledger: from pull-to-refresh to content on screen</h3>
+  <p>The bottom half of the panel is the latency budget, itemised. A user's patience on pull-to-refresh caps perceived end-to-end latency: a typical request (P50) lands around 400 ms, the tail (P99) can reach 800 ms; the server-side ranking budget is set at P99, about 300 ms. Three reasons the ledger differs from what users feel — each can be verified by hand on the panel:</p>
+  <ul class="tight">
+    <li><strong>Wall-clock time is not the sum of the stages.</strong> Retrieval channels run in parallel, and so does the ads auction (switch "Ads in parallel" off and the total grows by a whole rod). Hover any row to light up its upstream serial chain — only that chain sets the wall-clock.</li>
+    <li><strong>Budgets are set at P99 and held by degradation.</strong> Switch to P99: both network legs and every stage stretch; past the budget the bracket turns red and names the fallback — drop the timed-out retrieval channel, fall back to pre-ranking scores.</li>
+    <li><strong>The best latency is none.</strong> "Instant refresh" is mostly prefetch: the next page was prepared during the previous request and is shown first while fresh results load behind it — those 400 ms are spent when the user isn't looking.</li>
+  </ul>
+  <p>Read backwards, this ledger is the architecture's cause: ranking gets about 100 ms on the critical path, so it must run in milliseconds on one GPU (set the model to Transformer, then switch pre-ranking off, and watch it break the budget); retrieval gets about 50 ms, so it must be sublinear (two-tower + ANN). With this frame in hand, the next lecture looks at 𝕏's real implementation — the places where it departs from the paradigm are the most instructive parts.</p>
+</section>
+
+<!-- ═══════════════ Lecture 2 ═══════════════ -->
+<section class="lesson" id="en-l1">
+  <div class="lesson-eyebrow">Lecture 2</div>
+  <h2>𝕏 end to end: the life of a request</h2>
+  <p>Every pull-to-refresh of For You is assembled <strong>on the spot</strong> by the feed service <a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer">𝕏-Home&nbsp;Mixer</a> (Rust). It is built on the <a href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/candidate-pipeline"><code>candidate-pipeline</code></a> framework, which splits the work into standardized stages — sources, hydrators, filters, scorers, selectors, side effects — and runs independent stages in parallel. Against the cascade from Lecture 1, 𝕏's path is <strong>Retrieval → Ranking → Re-ranking → Blending</strong>, plus hydration and two rounds of filtering — note the missing pre-ranking layer; we'll come back to why. The big picture first; later lectures expand each segment:</p>
+
+    <figure class="ix-figure" data-rp data-lang="en">
+    <div class="crumb">Map · 𝕏 request path (overview) · titles of ②⑤⑦ link to their lectures</div>
+    <p class="ix-title">Ranking decides the order; visibility decides who gets in at all — the two lines only meet at ⑦.</p>
+    <div class="ix-controls">
+      <div class="seg" role="group" aria-label="Focus"><button type="button" data-rp-focus="all" aria-pressed="true">All</button><button type="button" data-rp-focus="rank" aria-pressed="false">Ranking line</button><button type="button" data-rp-focus="vis" aria-pressed="false">Visibility line</button></div>
+      <label><input type="checkbox" data-rp-map><b>Compare with the industry cascade</b></label>
+      <label><b>Track №4711 from</b><select data-rp-track aria-label="Track source"><option value="">—</option><option value="thunder">Thunder (in-network)</option><option value="phoenix">Phoenix retrieval (OON)</option><option value="simclusters">SimClusters (OON)</option></select></label>
+    </div>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 760 964" class="rp-svg" role="img" aria-label="For You request path: from the request through query hydration, parallel retrieval, feature hydration, pre-scoring filters, ranking, Top-K truncation, post-selection filters and blending to the final timeline; foldable to the ranking or visibility line, comparable with the industry cascade, and able to track one post">
+      <defs>
+        <marker id="arr-en" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="arrMuted-en" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker>
+      </defs>
+
+      <g class="rp-stage" data-st="0" data-line="rank">
+        <rect x="230" y="4" width="220" height="36" rx="18" class="dg-box"/>
+        <text x="340" y="27" text-anchor="middle" class="dg-title">For You feed request</text>
+        <line x1="340" y1="40" x2="340" y2="62" class="dg-arrow" marker-end="url(#arr-en)"/>
+      </g>
+
+      <g class="rp-stage" data-st="1" data-line="rank">
+        <rect x="70" y="66" width="540" height="62" rx="8" class="dg-box"/>
+        <text x="90" y="92" class="dg-title">① Query Hydration</text>
+        <text x="90" y="113" class="dg-note">recent action sequence (main model input) · follows · blocks &amp; mutes · muted words · seen posts</text>
+        <line x1="340" y1="128" x2="340" y2="150" class="dg-arrow" marker-end="url(#arr-en)"/>
+      </g>
+
+      <g class="rp-stage" data-st="2" data-line="rank">
+        <rect x="70" y="154" width="540" height="140" rx="8" class="dg-box"/>
+        <a href="#en-l2" class="rp-link"><text x="90" y="180" class="dg-title">② Candidate Retrieval <tspan class="dg-note">(parallel channels · Lecture 3)</tspan></text></a>
+        <g class="rp-src" data-src="thunder">
+          <rect x="90" y="194" width="240" height="84" rx="6" class="dg-box-soft"/>
+          <text x="106" y="218" class="dg-text" style="font-weight:700">In-Network</text>
+          <text x="106" y="238" class="dg-note"><tspan style="font-style:italic">𝕏-Thunder</tspan>: recent posts from</text>
+          <text x="106" y="256" class="dg-note">followed accounts (in memory)</text>
+        </g>
+        <g class="rp-src" data-src="oon">
+          <rect x="350" y="194" width="240" height="84" rx="6" class="dg-box-soft"/>
+          <text x="366" y="218" class="dg-text" style="font-weight:700">Out-of-Network</text>
+          <text x="366" y="238" class="dg-note"><tspan style="font-style:italic">𝕏-Phoenix</tspan> retrieval: two-tower ANN</text>
+          <text x="366" y="256" class="dg-note"><tspan style="font-style:italic">𝕏-SimClusters</tspan>: engagement clusters</text>
+        </g>
+        <line x1="340" y1="294" x2="340" y2="322" class="dg-arrow" marker-end="url(#arr-en)"/>
+        <text x="352" y="313" class="dg-mono">merged ≈ thousands</text>
+      </g>
+
+      <g class="rp-stage" data-st="3" data-line="rank">
+        <rect x="70" y="326" width="540" height="52" rx="8" class="dg-box"/>
+        <text x="90" y="350" class="dg-title">③ Feature Hydration</text>
+        <text x="90" y="369" class="dg-note">post text &amp; media · author info &amp; account labels · engagement counts · language</text>
+        <line x1="340" y1="378" x2="340" y2="400" class="dg-arrow" marker-end="url(#arr-en)"/>
+      </g>
+
+      <g class="rp-stage" data-st="4" data-line="rank">
+        <rect x="70" y="404" width="540" height="52" rx="8" class="dg-box"/>
+        <text x="90" y="428" class="dg-title">④ Pre-scoring Filters</text>
+        <text x="90" y="447" class="dg-note">cross-source dedup · older than 48 h · own posts · blocks &amp; mutes · muted words · seen / served</text>
+        <line x1="340" y1="456" x2="340" y2="484" class="dg-arrow" marker-end="url(#arr-en)"/>
+        <text x="352" y="475" class="dg-mono">≈ hundreds left</text>
+      </g>
+
+      <g class="rp-stage" data-st="5" data-line="rank">
+        <rect x="70" y="488" width="540" height="118" rx="8" class="dg-box-accent"/>
+        <a href="#en-l3" class="rp-link"><text x="90" y="514" class="dg-accent-text">⑤ Ranking (Lecture 4)</text></a>
+        <text x="90" y="537" class="dg-text"><tspan style="font-weight:700">PhoenixScorer</tspan>  multi-task prediction: Transformer predicts P(action) per post</text>
+        <text x="90" y="558" class="dg-text"><tspan style="font-weight:700">RankingScorer</tspan>  weighted fusion, author scatter, OON discount, new-author boost</text>
+        <text x="90" y="579" class="dg-text"><tspan style="font-weight:700">VMRanker</tspan>  re-ranking: DPP trades a little score for neighbour diversity</text>
+        <line x1="340" y1="606" x2="340" y2="628" class="dg-arrow" marker-end="url(#arr-en)"/>
+      </g>
+
+      <g class="rp-stage" data-st="6" data-line="rank">
+        <rect x="70" y="632" width="540" height="46" rx="8" class="dg-box"/>
+        <text x="90" y="661" class="dg-title">⑥ Top-K Truncation <tspan class="dg-note" style="font-weight:400">sort by final score, keep the top K</tspan></text>
+        <line x1="340" y1="678" x2="340" y2="700" class="dg-arrow" marker-end="url(#arr-en)"/>
+      </g>
+
+      <g class="rp-stage" data-st="7" data-line="vis">
+        <rect x="70" y="704" width="540" height="62" rx="8" class="dg-box"/>
+        <a href="#en-l4" class="rp-link"><text x="90" y="730" class="dg-title">⑦ Post-selection Filters <tspan class="dg-note">(Lecture 5)</tspan></text></a>
+        <text x="90" y="751" class="dg-note">VFFilter removes "drop" verdicts · parent dropped ⇒ child dropped · one branch per conversation</text>
+        <path d="M 726 735 L 618 735" class="dg-arrow-dashed" marker-end="url(#arrMuted-en)"/>
+        <text x="672" y="720" text-anchor="middle" class="dg-note">safety labels</text>
+        <text x="672" y="782" text-anchor="middle" class="dg-note">(labeling path)</text>
+        <line x1="340" y1="766" x2="340" y2="788" class="dg-arrow" marker-end="url(#arr-en)"/>
+      </g>
+
+      <g class="rp-stage" data-st="8" data-line="none">
+        <rect x="70" y="792" width="540" height="52" rx="8" class="dg-box"/>
+        <text x="90" y="816" class="dg-title">⑧ Blending</text>
+        <text x="90" y="835" class="dg-note">ranked posts + ads · Who to Follow · prompts, interleaved by BlenderSelector</text>
+        <line x1="340" y1="844" x2="340" y2="866" class="dg-arrow" marker-end="url(#arr-en)"/>
+      </g>
+
+      <g class="rp-stage" data-st="9" data-line="none">
+        <rect x="70" y="870" width="540" height="36" rx="8" class="dg-box" style="stroke-dasharray:4 4"/>
+        <text x="90" y="893" class="dg-note">⑨ Side effects (after the response): record served posts · logging</text>
+        <line x1="340" y1="906" x2="340" y2="924" class="dg-arrow" marker-end="url(#arr-en)"/>
+        <rect x="230" y="926" width="220" height="36" rx="18" class="dg-box"/>
+        <text x="340" y="949" text-anchor="middle" class="dg-title">Ranked For You timeline</text>
+      </g>
+
+      <g class="rp-map" aria-hidden="true">
+        <rect x="628" y="213" width="124" height="22" rx="11" class="dg-box-soft"/><text x="690" y="228" text-anchor="middle" class="dg-mono">Retrieval</text>
+        <rect x="628" y="460" width="124" height="22" rx="11" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4 4"/><text x="690" y="475" text-anchor="middle" class="dg-mono">Pre-ranking · absent</text>
+        <rect x="628" y="526" width="124" height="22" rx="11" class="dg-box-accent"/><text x="690" y="541" text-anchor="middle" class="dg-mono" style="fill:var(--accent)">Ranking + fusion</text>
+        <rect x="628" y="568" width="124" height="22" rx="11" class="dg-box-soft"/><text x="690" y="583" text-anchor="middle" class="dg-mono">Re-ranking</text>
+        <rect x="628" y="806" width="124" height="22" rx="11" class="dg-box-soft"/><text x="690" y="821" text-anchor="middle" class="dg-mono">Blending</text>
+      </g>
+    </svg>
+    </div>
+    <div class="ix-info" data-rp-info></div>
+    <figcaption>Fig. 2 · 𝕏's request path (overview). Every stage can be switched on and off individually; defaults live in <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer/params/param.rs"><code>home-mixer/params/param.rs</code></a>, and a cron job syncs the repository defaults to production values.</figcaption>
+  </figure>
+
+  <h3>Funnel terminology, mapped</h3>
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th>Industry stage</th><th>中文</th><th>In this system</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Retrieval</strong></td><td>召回</td><td><a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/thunder">𝕏-Thunder</a> (in-network) · <a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix">𝕏-Phoenix</a> retrieval · <a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/simclusters">𝕏-SimClusters</a> (out-of-network)</td></tr>
+      <tr><td><strong>Pre-ranking</strong></td><td>粗排</td><td><strong>No separate pre-ranking layer</strong> — retrieval already brings the count to thousands; rule filters take it to hundreds and ranking consumes them directly</td></tr>
+      <tr><td><strong>Ranking</strong></td><td>精排</td><td><a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix">𝕏-Phoenix</a> ranking model: pointwise multi-task engagement prediction</td></tr>
+      <tr><td><strong>Fusion</strong></td><td>融合</td><td><a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer/scorers/ranking_scorer.rs"><code>RankingScorer</code></a> weighted sum + three adjustments</td></tr>
+      <tr><td><strong>Re-ranking</strong></td><td>重排</td><td><a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/vm-ranker">𝕏-VMRanker</a>: DPP diversity re-ranking; author scatter</td></tr>
+      <tr><td><strong>Blending</strong></td><td>混排</td><td>Blending pipeline: inserting ads, Who to Follow and other non-post items</td></tr>
+      <tr><td><strong>Feature hydration</strong></td><td>特征水合</td><td>Query / candidate hydrators (stages ① and ③)</td></tr>
+      <tr><td><strong>Trust &amp; Safety</strong></td><td>内容安全</td><td><a href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/visibility-filtering"><code>visibility-filtering</code></a> + the labeling path (Lecture 5)</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The one stage that doesn't line up deserves a pause: most large platforms put a light pre-ranking model between retrieval and ranking to cut thousands down to hundreds before the heavy model runs. 𝕏 wires strong retrieval plus rule-based filtering straight into ranking — candidate isolation makes ranking scores cacheable (Lecture 6), the heavy model can afford a few hundred posts, and the pre-ranking layer is simply skipped.</p>
+
+  <p>One division of labour runs through the whole course: <strong>ranking decides the order; visibility decides whether a post can be shown at all.</strong> The model in stage ⑤ only answers "how likely are you to like this"; stage ⑦ consults an entirely separate Trust &amp; Safety system (Lecture 5) with different inputs, different rules and different services.</p>
+</section>
+
+<!-- ═══════════════ Lecture 3 ═══════════════ -->
+<section class="lesson" id="en-l2">
+  <div class="lesson-eyebrow">Lecture 3</div>
+  <h2>Retrieval<span class="en">(召回)</span>: millions → hundreds</h2>
+
+  <div class="funnel" role="img" aria-label="Candidate funnel: millions of recent posts, thousands after retrieval, hundreds after filtering, the top K into the timeline">
+    <div class="stage"><span class="n">Millions</span><span class="l">recent posts sitewide</span></div>
+    <span class="arr">→</span>
+    <div class="stage"><span class="n">Thousands</span><span class="l">three channels merged</span></div>
+    <span class="arr">→</span>
+    <div class="stage"><span class="n">Hundreds</span><span class="l">into ranking after filters</span></div>
+    <span class="arr">→</span>
+    <div class="stage"><span class="n">Top K</span><span class="l">into your timeline</span></div>
+  </div>
+
+  <p>Three retrieval channels fetch in parallel:</p>
+  <ul class="tight">
+    <li><a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/thunder">𝕏-Thunder</a> — <strong>in-network retrieval</strong>: posts are written to memory as they are published; at request time it returns recent posts from accounts you follow. It also receives the "already seen" list and drops those up front.</li>
+    <li><a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix">𝕏-Phoenix</a> retrieval — <strong>out-of-network (OON) model retrieval</strong>: a two-tower model with approximate nearest-neighbour (ANN) search, the main engine of "beyond your bubble" content; see the figure below.</li>
+    <li><a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/simclusters">𝕏-SimClusters</a> — <strong>OON collaborative retrieval</strong>: clusters accounts and posts by "who engages with the same things," collaborative-filtering style, then uses cluster similarity to find candidates.</li>
+  </ul>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 680 330" role="img" aria-label="Two-tower retrieval: the user tower encodes engagement history into a user vector, the candidate tower encodes semantic IDs into post vectors, and an ANN search narrows millions of candidates to hundreds">
+      <defs>
+        <marker id="arr2-en" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <rect x="30" y="40" width="230" height="118" rx="8" class="dg-box-soft"/>
+      <text x="48" y="66" class="dg-title">User tower</text>
+      <text x="48" y="90" class="dg-note">Input: engagement history</text>
+      <text x="48" y="110" class="dg-note">+ coarse profile (country, lang)</text>
+      <text x="48" y="134" class="dg-text">Output: user vector <tspan class="dg-mono">[D]</tspan></text>
+
+      <rect x="420" y="40" width="230" height="118" rx="8" class="dg-box-soft"/>
+      <text x="438" y="66" class="dg-title">Candidate tower</text>
+      <text x="438" y="90" class="dg-note">Input: semantic IDs (6 × 256)</text>
+      <text x="438" y="110" class="dg-note">+ hashed author ID</text>
+      <text x="438" y="134" class="dg-text">Output: post index <tspan class="dg-mono">[N × D]</tspan></text>
+
+      <line x1="260" y1="99" x2="296" y2="99" class="dg-arrow" marker-end="url(#arr2-en)"/>
+      <line x1="420" y1="99" x2="384" y2="99" class="dg-arrow" marker-end="url(#arr2-en)"/>
+      <circle cx="340" cy="99" r="42" class="dg-box-accent"/>
+      <text x="340" y="94" text-anchor="middle" class="dg-text" style="font-weight:700">ANN</text>
+      <text x="340" y="112" text-anchor="middle" class="dg-text" style="font-weight:700">search</text>
+
+      <text x="438" y="182" class="dg-note">index is saved inside the</text>
+      <text x="438" y="200" class="dg-note">checkpoint; loaded at startup</text>
+
+      <line x1="340" y1="141" x2="340" y2="238" class="dg-arrow" marker-end="url(#arr2-en)"/>
+      <text x="352" y="196" class="dg-mono">millions → hundreds</text>
+      <rect x="240" y="242" width="200" height="44" rx="8" class="dg-box"/>
+      <text x="340" y="269" text-anchor="middle" class="dg-title">OON candidate posts</text>
+    </svg>
+    </div>
+    <figcaption>Fig. 3 · <i>𝕏-Phoenix</i> two-tower retrieval. The towers encode independently; online there is a single ANN similarity search, which is how it copes with a candidate pool in the millions.</figcaption>
+  </figure>
+
+  <p>Two details worth savouring:</p>
+  <ul class="tight">
+    <li><strong>Retrieval uses no user-ID embedding</strong> (<code>use_user_embedding=False</code>). The system represents you almost entirely by what you engaged with recently — your interest profile is rewritten daily by your own behaviour, not frozen into a learned ID embedding.</li>
+    <li><strong>Posts are represented by semantic IDs</strong>: each post's multimodal embedding is quantized into 6 levels of residual codes, 256 choices per level. Posts on the same topic share code prefixes, so the model generalizes compositionally to posts it has <em>never seen</em> — a post is retrievable the moment it is published, with no item cold-start problem.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════ Lecture 4 ═══════════════ -->
+<section class="lesson" id="en-l3">
+  <div class="lesson-eyebrow">Lecture 4</div>
+  <h2>Ranking &amp; fusion: Σ weight × probability</h2>
+  <p>Each post entering ranking<span class="en">(精排)</span> is scored by the <a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix">𝕏-Phoenix</a> ranking model — a Transformer that reads your action sequence as context — with <strong>multi-task engagement prediction</strong>, pointwise, producing <strong>probabilities for roughly twenty actions</strong>: like, reply, repost, quote, share, various clicks, dwell time, follow author, plus negative-feedback actions — not interested, mute, block, report. <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer/scorers/ranking_scorer.rs"><code>RankingScorer</code></a> then combines them with a one-line fusion formula (score fusion / value model):</p>
+
+  <div class="callout" style="border-color: var(--slate); background: var(--slate-soft);">
+    <p class="mono" style="font-size: 1rem; text-align: center;">Final score = Σ ( weight<sub>i</sub> × P(action<sub>i</sub>) )</p>
+  </div>
+
+  <p>Some real default weights from <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer/params/param.rs"><code>param.rs</code></a> in the 2026-08 snapshot (production reads them from a config system; a cron job writes production values back into the repository):</p>
+
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th>Action</th><th>Weight</th><th>Action</th><th>Weight</th></tr></thead>
+    <tbody>
+      <tr><td>Reply</td><td class="w pos">+5.0</td><td>Report</td><td class="w neg">−234.0</td></tr>
+      <tr><td>Quote</td><td class="w pos">+5.0</td><td>Mute author</td><td class="w neg">−58.8</td></tr>
+      <tr><td>Follow author</td><td class="w pos">+4.0</td><td>Not interested</td><td class="w neg">−43.2</td></tr>
+      <tr><td>Share</td><td class="w pos">+2.0</td><td>Block author</td><td class="w neg">−31.2</td></tr>
+      <tr><td>Repost</td><td class="w pos">+1.0</td><td>Not dwelled</td><td class="w neg">−0.02</td></tr>
+      <tr><td>Like</td><td class="w pos">+0.5</td><td>Dwell time (continuous)</td><td class="w pos">+0.004</td></tr>
+      <tr><td>Click</td><td class="w pos">+0.4</td><td>Dwell (binary)</td><td class="w pos">+0.05</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout">
+    <p><span class="label">Common misreading</span>Weights multiply <strong>your own predicted probabilities</strong>, not raw engagement counts. Seeing that report's weight is 468× like's and concluding "one report cancels 468 likes" is wrong — reporting is a far rarer action than liking, its probability baseline is orders of magnitude lower, and the large weight simply lets that rare signal move the ranking at all. Both the README and the code comments spell this out.</p>
+  </div>
+
+  <div class="calc" data-lang="en">
+    <h3>Try the arithmetic</h3>
+    <p class="calc-sub">Drag the sliders to set the model's predicted probability of each action for <em>you</em> on this post, and watch the final score move. Weights are the real defaults from <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer/params/param.rs"><code>param.rs</code></a>.</p>
+    <div class="calc-rows"></div>
+    <div class="calc-bars" aria-hidden="true"></div>
+    <div class="calc-total">
+      <span class="lbl">Final score</span>
+      <span class="val calc-total-val">0.000</span>
+    </div>
+  </div>
+
+  <figure class="ix-figure" data-bs data-lang="en">
+    <div class="crumb">Map · 𝕏 request path › ⑤ Ranking › fusion formula · protagonist: №4711</div>
+    <p class="ix-title">Weights are prices, not votes: one rare report can outweigh a pile of cheap likes.</p>
+    <div class="fig-scroll"><svg class="bs-svg" viewBox="0 0 640 250" role="img" aria-label="Balance scale: the left pan holds post №4711's final score, driven by the sliders above; the right pan holds a reference post's fixed score; drag the sliders and the beam tilts with the difference"></svg></div>
+    <div class="ix-info" data-bs-info></div>
+    <figcaption>Fig. 4 · Left pan: post №4711 (driven by the sliders above). Right pan: a reference post (fixed: like 8%, reply 1%, repost 2%, follow 0.3%, not interested 0.15%, report 0.003%; total +0.050). Predict, then reveal: drag "Report" from 0.02% to 0.10% — does the beam tip toward the reference post?</figcaption>
+  </figure>
+
+  <p>After fusion come three business adjustments, then re-ranking:</p>
+  <ul class="tight">
+    <li><strong>Author scatter (author diversity)</strong>: from an author's second post onward, the score is multiplied by a decaying factor (with a floor), so nobody floods the feed.</li>
+    <li><strong>OON discount</strong>: posts from accounts you don't follow are multiplied by a factor below 1; reposts and replies from followed accounts get the same discount.</li>
+    <li><strong>New-author boost (cold-start exploration)</strong>: authors below an impression threshold have their posts lifted toward a target position, giving newcomers a chance.</li>
+    <li><strong>Diversity re-ranking: <a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/vm-ranker">𝕏-VMRanker</a></strong> — a separate re-ranking service that runs a determinantal point process (DPP) over post embeddings: it gives up a little score for lower similarity between neighbours, so your timeline doesn't show five posts in a row on one topic.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════ Lecture 5 ═══════════════ -->
+<section class="lesson" id="en-l4">
+  <div class="lesson-eyebrow">Lecture 5</div>
+  <h2>Visibility: a separate system from ranking</h2>
+  <p>The model saying "you'd like this" doesn't mean you get to see it. This is the industry's <strong>Trust &amp; Safety</strong> layer: whether a post can be shown is decided independently by the visibility-filtering service <a href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/visibility-filtering"><code>visibility-filtering</code></a>, based on a <strong>continuously running labeling path</strong> — content-understanding models score posts and accounts, and a rule engine writes safety labels. None of it runs on the request path, which only reads:</p>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 720 540" role="img" aria-label="Labeling path: content-understanding models score posts and accounts, rule engines write labels to storage, and visibility filtering on the request path reads the labels and returns allow, interstitial or drop">
+      <defs>
+        <marker id="arr3-en" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <text x="40" y="26" class="dg-title">① Content understanding (continuous, off the request path)</text>
+      <rect x="40" y="40" width="310" height="122" rx="8" class="dg-box"/>
+      <text x="58" y="66" class="dg-text" style="font-weight:700">Posts &amp; media</text>
+      <text x="58" y="90" class="dg-note"><tspan class="dg-mono">grox</tspan>  text &amp; media classifiers (spam, NSFW, gore)</text>
+      <text x="58" y="112" class="dg-note"><tspan class="dg-mono">media-model-proxy</tspan>  image / video models</text>
+      <text x="58" y="134" class="dg-note"><tspan class="dg-mono">clip</tspan>  media embeddings</text>
+
+      <rect x="376" y="40" width="310" height="122" rx="8" class="dg-box"/>
+      <text x="394" y="66" class="dg-text" style="font-weight:700">Accounts</text>
+      <text x="394" y="90" class="dg-note"><tspan class="dg-mono">agatha</tspan>  blocks &amp; reports relative to likes</text>
+      <text x="394" y="112" class="dg-note"><tspan class="dg-mono">bdsm</tspan>  inauthentic-behaviour model</text>
+      <text x="394" y="134" class="dg-note"><tspan class="dg-mono">user-cred-v2</tspan>  PageRank over the follow graph</text>
+
+      <line x1="195" y1="162" x2="195" y2="196" class="dg-arrow" marker-end="url(#arr3-en)"/>
+      <line x1="531" y1="162" x2="531" y2="196" class="dg-arrow" marker-end="url(#arr3-en)"/>
+
+      <rect x="40" y="200" width="646" height="96" rx="8" class="dg-box"/>
+      <text x="58" y="226" class="dg-title">② Labeling rules</text>
+      <text x="58" y="250" class="dg-note"><tspan class="dg-mono">scarecrow</tspan>  event-driven: on this event, if these conditions hold → apply label (embeds botmaker)</text>
+      <text x="58" y="272" class="dg-note"><tspan class="dg-mono">abuse-enforcement-service</tspan>  acts on model scores: label / challenge / suspend</text>
+
+      <line x1="363" y1="296" x2="363" y2="326" class="dg-arrow" marker-end="url(#arr3-en)"/>
+      <text x="375" y="317" class="dg-note">write</text>
+
+      <rect x="200" y="330" width="326" height="42" rx="8" class="dg-box"/>
+      <text x="363" y="356" text-anchor="middle" class="dg-title">③ Label storage</text>
+
+      <line x1="363" y1="372" x2="363" y2="402" class="dg-arrow" marker-end="url(#arr3-en)"/>
+      <text x="375" y="393" class="dg-note">read back on the request path</text>
+
+      <rect x="40" y="406" width="646" height="112" rx="8" class="dg-box-accent"/>
+      <text x="58" y="432" class="dg-accent-text">④ Visibility filtering · one verdict per post × viewer</text>
+      <text x="58" y="456" class="dg-note">inputs: the labels above + whether you block / mute / follow the author + account state + your settings &amp; country</text>
+      <text x="58" y="478" class="dg-note">rules run in order; the first rule that answers drop ends evaluation</text>
+      <text x="58" y="502" class="dg-text"><tspan style="font-weight:700;fill:var(--good)">ALLOW show normally</tspan>   <tspan style="font-weight:700;fill:var(--warn)">INTERSTITIAL tap to reveal</tspan>   <tspan style="font-weight:700;fill:var(--bad)">DROP hide</tspan></text>
+    </svg>
+    </div>
+    <figcaption>Fig. 5 · The labeling path and visibility filtering. Codenames in the figure: <i>𝕏-Grox</i> (content classification), <i>𝕏-Agatha</i> (account reputation), <i>𝕏-BDSM</i> (action-sequence risk), <i>𝕏-UserCred</i> (graph reputation), <i>𝕏-Scarecrow</i> / <i>𝕏-Botmaker</i> (rule engine). The rule list, in evaluation order, is in <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/visibility-filtering/rules/registry.rs"><code>visibility-filtering/rules/registry.rs</code></a>.</figcaption>
+  </figure>
+
+  <div class="verdicts">
+    <div class="verdict allow"><b>ALLOW</b><span>shown normally</span></div>
+    <div class="verdict inter"><b>INTERSTITIAL</b><span>shown behind a tap-through cover, e.g. adult or graphic media</span></div>
+    <div class="verdict drop"><b>DROP</b><span>not shown; replies and quotes whose ancestor was dropped go too</span></div>
+  </div>
+
+  <figure class="ix-figure" data-bq data-lang="en">
+    <div class="crumb">Map · 𝕏 request path › ⑦ Post-selection filters › visibility verdict · protagonist: №4711</div>
+    <p class="ix-title">The queue sets the order, the bouncer checks the list: flip "follows", the verdict flips, the queue does not move.</p>
+    <div class="ix-controls">
+      <label><input type="checkbox" data-bq-follow><b>Viewer follows №4711's author</b></label>
+      <label><b>Label on №4711</b><select data-bq-label aria-label="Label"><option value="none">none</option><option value="spam" selected>suspected spam (high recall)</option><option value="adult">adult media</option></select></label>
+    </div>
+    <div class="fig-scroll"><svg class="bq-svg" viewBox="0 0 760 250" role="img" aria-label="Queue and bouncer: six posts queue in ranking order with №4711 second; the bouncer on the right checks a list; flipping the follow switch or changing the label moves the verdict between ALLOW, INTERSTITIAL and DROP while the queue order stays"></svg></div>
+    <div class="ix-info" data-bq-info></div>
+    <figcaption>Fig. 6 · The queue is in ranking order (№4711 is #2); the bouncer checks the list in the order of <code>registry.rs</code>. The "recommendations only" rules drop a post only when the viewer does not follow the author; the adult-media label yields INTERSTITIAL regardless of following.</figcaption>
+  </figure>
+
+  <p>A subtle design: one set of rules <strong>applies only to recommendations</strong> — a post can be dropped only when it comes from an account you don't follow (e.g. suspected spam caught at high recall); the same post is shown to followers as usual. The system would rather recommend less than hide content from a creator's own followers.</p>
+  <p>A companion transparency tool, <a href="https://x.com/i/under_the_hood" rel="noopener">Under the Hood</a>, lets anyone see aggregate statistics of the visibility-affecting labels on their account and posts. Some rule files (<a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/grox">𝕏-Grox</a>'s prompts, some <a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/botmaker">𝕏-Botmaker</a> rules) are withheld to resist gaming; the stated position is that code plus queryable outcomes together make up the transparency.</p>
+</section>
+
+<!-- ═══════════════ Lecture 6 ═══════════════ -->
+<section class="lesson" id="en-l5">
+  <div class="lesson-eyebrow">Lecture 6</div>
+  <h2>Design decisions</h2>
+  <ul class="tight">
+    <li><strong>Multi-action prediction, not a single "relevance" score.</strong> The model outputs about twenty probabilities; combining them is an explicit, auditable step — changing the product's values means editing plaintext weights, not retraining.</li>
+    <li><strong>Candidate isolation.</strong> During ranking inference, candidates cannot attend to each other, only to the viewer context. A post's score does not depend on what else is in the batch, so scores are stable and cacheable.</li>
+    <li><strong>Hash-based embeddings, no vocabulary.</strong> Both retrieval and ranking look up embeddings through multiple hash functions; a new post or author is representable the moment it appears, with no vocabulary to maintain.</li>
+    <li><strong>Ranking and visibility fully separated.</strong> Different services, inputs and rules. Safety verdicts are never diluted by "the user would probably like it," and vice versa.</li>
+    <li><strong>A pipeline framework.</strong> <a href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/candidate-pipeline"><code>candidate-pipeline</code></a> standardizes stage types and separates execution and monitoring from business logic; adding a retrieval channel or a filter is a plug-in.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════ Lecture 7 ═══════════════ -->
+<section class="lesson" id="en-l6">
+  <div class="lesson-eyebrow">Lecture 7</div>
+  <h2>Hands-on &amp; discussion questions</h2>
+  <p>The biggest difference from the 2023 open-sourcing: the <a class="cn" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix">𝕏-Phoenix</a> directory holds the <strong>real production training and serving code</strong> (JAX training plus a Rust gRPC serving engine), with deterministic synthetic-data generators and single-GPU <code>nano</code> configs (<code>home_direct_packed_nano</code> for ranking, <code>xrecsys_two_tower_nano</code> for retrieval). In minutes on one GPU you can run it end to end: train → checkpoint → serve with the same engine production uses. Start at <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix/QUICKSTART.md"><code>phoenix/QUICKSTART.md</code></a> and <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/phoenix/TRAINING.md"><code>phoenix/TRAINING.md</code></a>.</p>
+
+  <h3>Discussion questions</h3>
+  <ol class="quiz">
+    <li>Why doesn't the retrieval tower learn an ID embedding per user? If it did, what would happen to users whose interests shift quickly — and to bot-farm profiles?
+      <span class="ans">Hint: the action sequence is live while an ID embedding lags; an ID embedding also gives inflated engagement a durable place to live.</span></li>
+    <li>Report's weight is −234 and like's is +0.5. Build a numeric example showing why this is not "one report cancels 468 likes."
+      <span class="ans">Hint: plug in typical probabilities, e.g. P(like) = 10% and P(report) = 0.01%, and compare the absolute contributions.</span></li>
+    <li>What would it cost to make the "recommendations only, not followers" drop rules apply to everyone? And to remove them entirely?
+      <span class="ans">Hint: think about collateral damage (high recall means false positives) and the informed choice a follow relationship carries.</span></li>
+    <li>Candidate isolation gives up within-batch comparison. If candidates could attend to each other, why would scores stop being cacheable — and where should listwise gains be recovered instead?
+      <span class="ans">Hint: 𝕏-VMRanker's DPP re-ranking is exactly within-batch diversity, applied after scoring.</span></li>
+  </ol>
+</section>
+
+<footer class="end">
+  <p>These notes are based on the README and source of <a href="https://github.com/xai-org/x-algorithm" class="mono">xai-org/x-algorithm</a> as of 2026-08-14; every code link is pinned to commit <a class="mono" href="https://github.com/xai-org/x-algorithm/tree/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e">45b48ba</a>; weights and other numbers are repository-snapshot defaults, while production uses the config system's live values. <i>𝕏-Codename</i> italics mark 𝕏's internal system codenames; industry-standard concepts are set in roman with their Chinese equivalents. The code is open-sourced under Apache 2.0.</p>
+</footer>
+
+</div><!-- /en -->
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+/* ───────────── 语言切换 / language switch ───────────── */
+(function () {
+  var blocks = document.querySelectorAll(".lang");
+  var btns = document.querySelectorAll("[data-set-lang]");
+  function apply(l) {
+    blocks.forEach(function (b) { b.hidden = b.getAttribute("data-lang") !== l; });
+    btns.forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-set-lang") === l)); });
+    document.documentElement.lang = l === "zh" ? "zh-CN" : "en";
+    try { localStorage.setItem("fy-lang", l); } catch (e) {}
+  }
+  var initial = null;
+  var q = /[?&]lang=(zh|en)/.exec(location.search);
+  if (q) initial = q[1];
+  if (!initial) { try { initial = localStorage.getItem("fy-lang"); } catch (e) {} }
+  if (initial !== "zh" && initial !== "en") {
+    initial = /^zh/i.test(navigator.language || "") ? "zh" : "en";
+  }
+  apply(initial);
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.getAttribute("data-set-lang")); });
+  });
+})();
+
+/* ───────────── 打分计算器 / score calculator ───────────── */
+(function () {
+  var NAMES = {
+    zh: ["点赞", "回复", "转发", "关注作者", "不感兴趣", "举报"],
+    en: ["Like", "Reply", "Repost", "Follow author", "Not interested", "Report"]
+  };
+  var ARIA = { zh: " 的预测概率", en: ": predicted probability" };
+  var SPEC = [
+    { w: 0.5,    max: 30, def: 12 },
+    { w: 5.0,    max: 10, def: 2 },
+    { w: 1.0,    max: 15, def: 3 },
+    { w: 4.0,    max: 5,  def: 0.5 },
+    { w: -43.2,  max: 3,  def: 0.3 },
+    { w: -234.0, max: 1,  def: 0.02 }
+  ];
+  var BAR_SCALE = 0.35; // 贡献值达到 ±0.35 时条满半轴
+
+  document.querySelectorAll(".calc").forEach(function (calc) {
+    var lang = calc.getAttribute("data-lang") || "zh";
+    var names = NAMES[lang];
+    var rowsEl = calc.querySelector(".calc-rows");
+    var barsEl = calc.querySelector(".calc-bars");
+    var totalEl = calc.querySelector(".calc-total-val");
+    if (!rowsEl || !barsEl || !totalEl) return;
+
+    SPEC.forEach(function (a, i) {
+      var sign = a.w >= 0 ? "pos" : "neg";
+      var row = document.createElement("div");
+      row.className = "calc-row";
+      row.innerHTML =
+        '<span class="name">' + names[i] + "</span>" +
+        '<span class="wt ' + sign + '">' + (a.w > 0 ? "+" : "") + a.w.toFixed(1) + "</span>" +
+        '<input type="range" min="0" max="' + a.max + '" step="0.01" value="' + a.def +
+          '" data-i="' + i + '" aria-label="' + names[i] + ARIA[lang] + '">' +
+        '<span class="pv" data-pv="' + i + '"></span>' +
+        '<span class="contrib" data-c="' + i + '"></span>';
+      rowsEl.appendChild(row);
+
+      var brow = document.createElement("div");
+      brow.className = "cbar-row";
+      brow.innerHTML =
+        "<span>" + names[i] + "</span>" +
+        '<span class="cbar-track"><span class="cbar ' + sign + '" data-b="' + i + '"></span></span>';
+      barsEl.appendChild(brow);
+    });
+
+    function update() {
+      var total = 0;
+      SPEC.forEach(function (a, i) {
+        var p = parseFloat(rowsEl.querySelector('input[data-i="' + i + '"]').value) / 100;
+        var c = a.w * p;
+        total += c;
+        rowsEl.querySelector('[data-pv="' + i + '"]').textContent = (p * 100).toFixed(2) + "%";
+        var cEl = rowsEl.querySelector('[data-c="' + i + '"]');
+        cEl.textContent = (c >= 0 ? "+" : "") + c.toFixed(3);
+        cEl.className = "contrib " + (c >= 0 ? "pos" : "neg");
+        barsEl.querySelector('[data-b="' + i + '"]').style.width =
+          (Math.min(Math.abs(c) / BAR_SCALE, 1) * 50) + "%";
+      });
+      totalEl.textContent = (total >= 0 ? "+" : "") + total.toFixed(3);
+      totalEl.className = "val calc-total-val " + (total >= 0 ? "pos" : "neg");
+      calc.dispatchEvent(new CustomEvent("calc:update", { detail: { total: total } }));
+    }
+    rowsEl.addEventListener("input", update);
+    update();
+  });
+})();
+
+/* ───────────── 共享工具 / shared helpers ───────────── */
+var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var SUP = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+function pow10(e) { return "10" + String(e).split("").map(function (c) { return SUP[c] || c; }).join(""); }
+function fmtCount(n) {
+  if (n < 1000) return String(Math.round(n));
+  var e = Math.floor(Math.log10(n)), m = n / Math.pow(10, e);
+  return (Math.abs(m - 1) < 0.05 ? "" : m.toFixed(1).replace(/\.0$/, "") + "×") + pow10(e);
+}
+function fmtInt(n) { return Math.round(n).toLocaleString("en-US"); }
+function dur(ms) { return REDUCE ? 0 : ms; }
+
+/* ───────────── 漏斗 + 延迟联动面板 / funnel + latency panel ───────────── */
+(function () {
+  var figs = document.querySelectorAll("[data-fp]");
+  if (!figs.length) return;
+  if (!window.d3) {
+    figs.forEach(function (f) { var i = f.querySelector("[data-fp-info]"); if (i) i.textContent = i.getAttribute("data-nod3"); });
+    return;
+  }
+  var I18N = {
+    zh: {
+      axisCount: "候选量 · 对数轴(条)", axisMs: "延迟 · 线性轴(ms)", inbox: "精排收件箱(每点 = 10 条帖子)",
+      overflow: "画不下了:超过 15,000 条", inLbl: "入 ", outLbl: " 出", topLbl: "Top 50 进时间线",
+      layers: {
+        ret: ["召回", "多通道并行:双塔 ANN、协同、关注关系。从全库捞出「可能相关」的,宁滥勿缺。"],
+        pre: ["粗排", "轻量模型快筛,替精排省算力。点击这一行可以把它移出 / 放回。"],
+        rank: ["精排", "重模型逐条打分。它看到多少条,就花多少毫秒 —— 看下面那根杆。"],
+        rerank: ["重排", "打散、多样性(DPP)、业务规则,只处理数百条。"],
+        blend: ["混排", "插入广告与运营内容,拼成最终 feed。"]
+      },
+      rods: {
+        up: ["上行网络", "移动网 RTT 为主。"], gw: ["网关 · 路由", "edge → API 网关 → feed 服务。"],
+        qh: ["查询水合", "并行 KV 读:行为序列、关注表、已看过。串行瓶颈:召回要用它的产出。"],
+        rt: ["召回(多路并行)", "ANN 是亚线性的:全库大 1000 倍,只多花几毫秒。"],
+        ch: ["候选特征水合", "唯一的大扇出读,耗时随召回产出线性增长 —— 召回也不能捞太多。"],
+        pr: ["粗排", "轻模型,耗时随召回产出线性增长,但斜率很小。"],
+        rk: ["精排", "耗时 = 收件箱条数 × 单条成本。最大单项,预算的主要消费者。"],
+        rr: ["重排 · 融合", "只处理数百条。"], cf: ["合规过滤", "标签 KV 读。"],
+        ad: ["广告竞价", "并行时只有比主链更长才拖慢总延时;串行时整段计入。"],
+        bl: ["混排合并", "把广告、推荐关注插进排好的帖子。"], dn: ["下行网络", "首屏 JSON 几十 KB。"], rd: ["客户端渲染", "解析 + 布局。"]
+      },
+      pct: "占总延时", par: "并行 · 不占关键路径", ghost: "已移出 · 点击放回", chain: "上游串行链已高亮",
+      total: "体感总延时", server: "服务端", budget: "预算 300", sees: "精排看到", items: "条",
+      over: "超预算 → 降级:丢弃超时召回通道、精排回退粗排分", ok: "在预算内", adsLonger: "广告比主链长,拖慢了混排之后的阶段"
+    },
+    en: {
+      axisCount: "Candidates · log axis (items)", axisMs: "Latency · linear axis (ms)", inbox: "Ranker inbox (each dot = 10 posts)",
+      overflow: "off the chart: more than 15,000 items", inLbl: "in ", outLbl: " out", topLbl: "Top 50 into the timeline",
+      layers: {
+        ret: ["Retrieval", "Parallel channels: two-tower ANN, collaborative, follow graph. Pull everything plausibly relevant; err on too many."],
+        pre: ["Pre-ranking", "A light model cuts fast and saves the heavy ranker's compute. Click this row to pull it out / put it back."],
+        rank: ["Ranking", "The heavy model scores each item. Every item it sees costs milliseconds — watch the rod below."],
+        rerank: ["Re-ranking", "Scatter, diversity (DPP), business rules — a few hundred items only."],
+        blend: ["Blending", "Insert ads and editorial content; assemble the feed."]
+      },
+      rods: {
+        up: ["Uplink network", "Mostly mobile RTT."], gw: ["Gateway · routing", "edge → API gateway → feed service."],
+        qh: ["Query hydration", "Parallel KV reads: action sequence, follows, seen posts. A serial bottleneck: retrieval needs its output."],
+        rt: ["Retrieval (parallel)", "ANN is sublinear: a corpus 1000× larger costs a few extra milliseconds."],
+        ch: ["Candidate hydration", "The one big fan-out read; grows linearly with retrieval output — retrieval can't over-fetch either."],
+        pr: ["Pre-ranking", "Light model; grows linearly with retrieval output, but with a tiny slope."],
+        rk: ["Ranking", "Time = inbox size × cost per item. The largest item and the budget's main consumer."],
+        rr: ["Re-rank · fusion", "A few hundred items only."], cf: ["Compliance filter", "Label KV reads."],
+        ad: ["Ads auction", "In parallel it only slows the total once it outgrows the main chain; in series it counts in full."],
+        bl: ["Blend & merge", "Insert ads and Who-to-Follow into the ranked posts."], dn: ["Downlink network", "First-screen JSON, tens of KB."], rd: ["Client render", "Parse + layout."]
+      },
+      pct: "of total", par: "parallel · off the critical path", ghost: "removed · click to restore", chain: "upstream serial chain highlighted",
+      total: "perceived total", server: "server", budget: "budget 300", sees: "ranker sees", items: "items",
+      over: "over budget → degrade: drop the timed-out retrieval channel, fall back to pre-ranking scores", ok: "within budget", adsLonger: "ads outgrew the main chain and delayed everything after blending"
+    }
+  };
+  var NET = { p50: { up: 60, gw: 10, dn: 70, rd: 90 }, p99: { up: 140, gw: 20, dn: 160, rd: 150 } };
+  var MUL = { p50: 1, p99: 1.8 };
+  var LAYERS = ["ret", "pre", "rank", "rerank", "blend"];
+  var RODS = ["up", "gw", "qh", "rt", "ch", "pr", "rk", "rr", "cf", "ad", "bl", "dn", "rd"];
+  var SERIAL = ["up", "gw", "qh", "rt", "ch", "pr", "rk", "rr", "cf", "bl", "dn", "rd"];
+  var BUDGET = 300, P_OUT = 1000, K_OUT = 200, TOP = 50, DOT_CAP = 1500;
+
+  function model(s) {
+    var N0 = Math.pow(10, s.corpusExp), R = Math.pow(10, s.retExp);
+    var inRank = s.prerank ? Math.min(P_OUT, R) : R;
+    var m = MUL[s.sc], net = NET[s.sc];
+    var d = {
+      up: net.up, gw: net.gw,
+      qh: Math.round(15 * m),
+      rt: Math.round((10 + 3.3 * Math.log10(N0)) * m),
+      ch: Math.round((8 + R * 0.002) * m),
+      pr: s.prerank ? Math.round((4 + R * 0.001) * m) : 0,
+      rk: Math.round((8 + inRank * s.unit) * m),
+      rr: Math.round((5 + K_OUT * 0.02) * m),
+      cf: Math.round(8 * m),
+      ad: Math.round(120 * m),
+      bl: Math.round(8 * m),
+      dn: net.dn, rd: net.rd
+    };
+    var order = ["up", "gw", "qh", "rt", "ch", "pr", "rk", "rr", "cf"];
+    if (!s.adsPar) order.push("ad");
+    order.push("bl", "dn", "rd");
+    var t = 0, rows = {};
+    order.forEach(function (k) { rows[k] = { start: t, end: t + d[k], dur: d[k], serial: true }; t += d[k]; });
+    var adsLonger = false;
+    if (s.adsPar) {
+      var adEnd = rows.rt.start + d.ad;
+      rows.ad = { start: rows.rt.start, end: adEnd, dur: d.ad, serial: false };
+      if (adEnd > rows.bl.start) {
+        var shift = adEnd - rows.bl.start;
+        ["bl", "dn", "rd"].forEach(function (k) { rows[k].start += shift; rows[k].end += shift; });
+        t += shift; adsLonger = true;
+      }
+    }
+    var layers = {
+      ret: { inN: N0, outN: R }, pre: { inN: R, outN: Math.min(P_OUT, R), ghost: !s.prerank },
+      rank: { inN: inRank, outN: K_OUT }, rerank: { inN: K_OUT, outN: TOP }, blend: { inN: TOP, outN: TOP }
+    };
+    return { rows: rows, total: t, server: rows.bl.end - rows.qh.start, inRank: inRank, layers: layers, d: d, adsLonger: adsLonger };
+  }
+
+  figs.forEach(function (fig, idx) {
+    var lang = fig.getAttribute("data-lang") || "zh", T = I18N[lang];
+    var svg = d3.select(fig.querySelector(".fp-svg"));
+    var info = fig.querySelector("[data-fp-info]");
+    var ctl = {
+      corpus: fig.querySelector("[data-fp-corpus]"), corpusV: fig.querySelector("[data-fp-corpus-v]"),
+      ret: fig.querySelector("[data-fp-ret]"), retV: fig.querySelector("[data-fp-ret-v]"),
+      model: fig.querySelector("[data-fp-model]"), prerank: fig.querySelector("[data-fp-prerank]"),
+      adspar: fig.querySelector("[data-fp-adspar]"), sc: fig.querySelectorAll("[data-fp-sc]")
+    };
+    var state = { corpusExp: 8, retExp: 4, unit: 0.05, prerank: true, adsPar: true, sc: "p50" };
+    function readState() {
+      state.corpusExp = parseFloat(ctl.corpus.value); state.retExp = parseFloat(ctl.ret.value);
+      state.unit = parseFloat(ctl.model.value); state.prerank = ctl.prerank.checked; state.adsPar = ctl.adspar.checked;
+      ctl.corpusV.textContent = fmtCount(Math.pow(10, state.corpusExp));
+      ctl.retV.textContent = fmtCount(Math.pow(10, state.retExp));
+    }
+
+    var X0 = 150, X1 = 880;
+    var xl = d3.scaleLog().domain([10, 1e9]).range([X0, X1]);
+    var xm = d3.scaleLinear().domain([0, 1200]).range([X0, X1]);
+    var FY0 = 56, FRH = 32, FBAR = 18;
+    var DOTS_Y = 254, DOT_PITCH = 4.55, DOTS_PER_ROW = 160;
+    var RY0 = 352, RRH = 20, RBAR = 14;
+    var RBOTTOM = RY0 + (RODS.length - 1) * RRH + RBAR;
+    var mid = "fpArr-" + lang + "-" + idx;
+
+    svg.append("defs").append("marker").attr("id", mid).attr("viewBox", "0 0 10 10").attr("refX", 9).attr("refY", 5)
+      .attr("markerWidth", 7).attr("markerHeight", 7).attr("orient", "auto")
+      .append("path").attr("d", "M0,0 L10,5 L0,10 z").attr("fill", "var(--muted)");
+
+    /* 上半:对数轴 */
+    svg.append("text").attr("class", "dg-mono").attr("x", 20).attr("y", 24).text(T.axisCount);
+    var lt = [10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9];
+    svg.append("g").selectAll("line").data(lt).join("line").attr("x1", xl).attr("x2", xl).attr("y1", 48).attr("y2", FY0 + 4 * FRH + FBAR + 6).attr("stroke", "var(--line)");
+    svg.append("g").selectAll("text").data(lt).join("text").attr("class", "dg-mono").attr("x", xl).attr("y", 40).attr("text-anchor", "middle").text(function (d) { return pow10(Math.round(Math.log10(d))); });
+
+    var lrows = svg.append("g").selectAll("g.fp-row").data(LAYERS).join("g")
+      .attr("class", function (k) { return "fp-row fp-layer" + (k === "pre" ? " removable" : ""); })
+      .attr("tabindex", 0)
+      .attr("transform", function (k, i) { return "translate(0," + (FY0 + i * FRH) + ")"; });
+    lrows.append("text").attr("class", "dg-text").attr("x", 20).attr("y", 13).style("font-weight", function (k) { return k === "rank" ? 700 : 400; }).text(function (k) { return T.layers[k][0]; });
+    lrows.append("rect").attr("class", function (k) { return "fp-band " + (k === "rank" ? "dg-box-accent" : "dg-box-soft"); }).attr("height", FBAR).attr("rx", 3).attr("y", 0);
+    lrows.append("text").attr("class", "dg-mono fp-in").attr("y", 13);
+    lrows.append("text").attr("class", "dg-mono fp-out").attr("y", 13).attr("text-anchor", "end");
+
+    svg.append("text").attr("class", "dg-note").attr("x", 20).attr("y", DOTS_Y - 8).text(T.inbox);
+    var dotsG = svg.append("g");
+    var overflowT = svg.append("text").attr("class", "dg-note fp-over").attr("x", X1).attr("y", DOTS_Y - 8).attr("text-anchor", "end");
+
+    /* 下半:线性轴 */
+    svg.append("text").attr("class", "dg-mono").attr("x", 20).attr("y", 320).text(T.axisMs);
+    var mt = d3.range(0, 1201, 200);
+    svg.append("g").selectAll("line").data(mt).join("line").attr("x1", xm).attr("x2", xm).attr("y1", 344).attr("y2", RBOTTOM + 6).attr("stroke", "var(--line)");
+    svg.append("g").selectAll("text").data(mt).join("text").attr("class", "dg-mono").attr("x", xm).attr("y", 336).attr("text-anchor", "middle").text(function (d) { return d === 1200 ? d + " ms" : d; });
+
+    var rrows = svg.append("g").selectAll("g.fp-row").data(RODS).join("g")
+      .attr("class", "fp-row fp-rodrow").attr("tabindex", 0)
+      .attr("transform", function (k, i) { return "translate(0," + (RY0 + i * RRH) + ")"; });
+    rrows.append("text").attr("class", "dg-text fp-lbl").attr("x", 20).attr("y", 11).style("font-weight", function (k) { return k === "rk" ? 700 : 400; }).text(function (k) { return T.rods[k][0]; });
+    rrows.append("rect").attr("class", function (k) {
+      var c = k === "rk" ? "dg-box-accent" : (["up", "gw", "dn", "rd"].indexOf(k) >= 0 ? "dg-box" : "dg-box-soft");
+      return "fp-rod " + c;
+    }).attr("height", RBAR).attr("rx", 3).attr("y", 0);
+    rrows.append("text").attr("class", "dg-mono fp-dur").attr("y", 11);
+    rrows.append("text").attr("class", "dg-mono fp-more").attr("x", X1 + 4).attr("y", 11).text("»").style("opacity", 0);
+
+    var br = svg.append("g");
+    br.append("line").attr("class", "b0").attr("y1", RBOTTOM + 18).attr("y2", RBOTTOM + 18).attr("stroke", "var(--muted)").attr("stroke-width", 1.2);
+    br.append("line").attr("class", "b1").attr("y1", RBOTTOM + 12).attr("y2", RBOTTOM + 24).attr("stroke", "var(--muted)").attr("stroke-width", 1.2);
+    br.append("line").attr("class", "b2").attr("y1", RBOTTOM + 12).attr("y2", RBOTTOM + 24).attr("stroke", "var(--muted)").attr("stroke-width", 1.2);
+    var brT = br.append("text").attr("class", "dg-note").attr("y", RBOTTOM + 40).attr("text-anchor", "middle");
+
+    var M = null;
+    function pct(v) { return Math.round(v / M.total * 100); }
+    function idle() {
+      var over = M.server > BUDGET;
+      info.innerHTML = "<b>" + T.total + " ≈ " + M.total + " ms</b> · " + T.server + " " + M.server + " ms / " + T.budget +
+        " · " + T.sees + " <b>" + fmtInt(M.inRank) + "</b> " + T.items + " → " + M.d.rk + " ms" +
+        (over ? ' · <span class="bad">' + T.over + "</span>" : "") + (M.adsLonger ? " · " + T.adsLonger : "");
+    }
+
+    function update(animate) {
+      readState(); M = model(state);
+      var tr = animate ? d3.transition().duration(dur(450)) : null;
+      function S(sel) { return tr ? sel.transition(tr) : sel; }
+
+      lrows.each(function (k) {
+        var g = d3.select(this), L = M.layers[k];
+        g.classed("ghost", !!L.ghost);
+        var x0 = xl(Math.max(L.outN, 10)), x1 = xl(Math.max(L.inN, 10)), w = Math.max(6, x1 - x0);
+        S(g.select(".fp-band")).attr("x", x0).attr("width", w);
+        var inT = g.select(".fp-in"), outT = g.select(".fp-out");
+        if (k === "blend") { inT.text(T.topLbl); outT.text(""); S(inT).attr("x", x1 + 8); }
+        else {
+          inT.text(T.inLbl + fmtCount(L.inN)); outT.text(L.ghost ? T.ghost : fmtCount(L.outN) + T.outLbl);
+          S(inT).attr("x", x1 + 8); S(outT).attr("x", L.ghost ? x0 + w + 8 : x0 - 8).attr("text-anchor", L.ghost ? "start" : "end");
+        }
+      });
+
+      var n = Math.min(Math.round(M.inRank / 10), DOT_CAP);
+      var dots = dotsG.selectAll("circle").data(d3.range(n), function (d) { return d; });
+      dots.exit().transition().duration(dur(300)).attr("r", 0).remove();
+      dots.enter().append("circle").attr("class", function (d) { return "fp-dot" + (d >= 100 ? " over" : ""); })
+        .attr("cx", function (d) { return X0 + (d % DOTS_PER_ROW) * DOT_PITCH; })
+        .attr("cy", function (d) { return DOTS_Y + Math.floor(d / DOTS_PER_ROW) * 4.6; })
+        .attr("r", 0).transition().duration(dur(350)).delay(function (d) { return REDUCE ? 0 : Math.min(400, d * 0.4); }).attr("r", 1.7);
+      overflowT.text(M.inRank / 10 > DOT_CAP ? T.overflow : "");
+
+      rrows.each(function (k) {
+        var g = d3.select(this), r = M.rows[k], rod = g.select(".fp-rod"), dt = g.select(".fp-dur");
+        var ghost = k === "pr" && !state.prerank;
+        g.classed("ghost", ghost);
+        var x0 = xm(r.start), x1 = Math.min(xm(r.end), X1), w = ghost ? 18 : Math.max(0, x1 - x0);
+        g.select(".fp-more").style("opacity", xm(r.end) > X1 ? 1 : 0);
+        S(rod).attr("x", x0).attr("width", w);
+        if (k === "ad" && !r.serial) {
+          rod.attr("fill", "none").attr("stroke", "var(--muted)").attr("stroke-dasharray", "4 4");
+          dt.attr("class", "dg-note fp-dur").attr("text-anchor", "middle").text(T.par); S(dt).attr("x", (x0 + x1) / 2);
+        } else {
+          rod.attr("fill", null).attr("stroke", null).attr("stroke-dasharray", null);
+          dt.attr("class", "dg-mono fp-dur").attr("text-anchor", "start")
+            .style("fill", k === "rk" ? "var(--accent)" : null)
+            .text(ghost ? T.ghost : r.dur + " ms · " + pct(r.dur) + "%");
+          S(dt).attr("x", Math.min(x0 + w, X1 - 60) + 6);
+        }
+      });
+
+      var b0 = xm(M.rows.qh.start), b1 = xm(M.rows.qh.start + BUDGET), over = M.server > BUDGET;
+      S(br.select(".b0")).attr("x1", b0).attr("x2", b1);
+      S(br.select(".b1")).attr("x1", b0).attr("x2", b0);
+      S(br.select(".b2")).attr("x1", b1).attr("x2", b1);
+      brT.classed("fp-over", over).text(T.budget + " ms · " + M.server + " ms " + (over ? T.over : T.ok));
+      S(brT).attr("x", (b0 + b1) / 2);
+      idle();
+    }
+
+    lrows.on("mouseenter focus", function (e, k) {
+      var L = M.layers[k];
+      info.innerHTML = "<b>" + T.layers[k][0] + "</b> · " + fmtCount(L.inN) + " → " + fmtCount(L.outN) + " — " + T.layers[k][1];
+    }).on("mouseleave blur", idle);
+    lrows.filter(function (k) { return k === "pre"; }).on("click keydown", function (e) {
+      if (e.type === "keydown" && e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault(); ctl.prerank.checked = !ctl.prerank.checked; update(true);
+    });
+
+    rrows.on("mouseenter focus", function (e, k) {
+      var r = M.rows[k];
+      var chain = r.serial ? SERIAL.filter(function (j) { return M.rows[j] && M.rows[j].serial && M.rows[j].start <= r.start && (j !== "pr" || state.prerank); }) : ["ad"];
+      if (!state.adsPar && r.serial) chain = RODS.filter(function (j) { return M.rows[j].serial && M.rows[j].start <= r.start; });
+      rrows.classed("chain", function (j) { return chain.indexOf(j) >= 0; });
+      svg.classed("fp-dim", true);
+      var head = k === "ad" && !r.serial ? T.par : r.dur + " ms · " + pct(r.dur) + "% " + T.pct;
+      info.innerHTML = "<b>" + T.rods[k][0] + "</b> · " + head + " — " + T.rods[k][1] + (r.serial ? " (" + T.chain + ")" : "");
+    }).on("mouseleave blur", function () { svg.classed("fp-dim", false); rrows.classed("chain", false); idle(); });
+
+    [ctl.corpus, ctl.ret, ctl.model, ctl.prerank, ctl.adspar].forEach(function (el) { el.addEventListener("input", function () { update(true); }); });
+    ctl.sc.forEach(function (b) {
+      b.addEventListener("click", function () {
+        state.sc = b.getAttribute("data-fp-sc");
+        ctl.sc.forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+        update(true);
+      });
+    });
+    update(false);
+  });
+})();
+
+/* ───────────── 请求路径总图:折叠 / 对照 / 跟踪 ───────────── */
+(function () {
+  var I18N = {
+    zh: {
+      idle: "选「排序线」或「可见性线」折叠其余部分;勾选「对照行业漏斗」看每一步对应范式的哪一层;选一个来源,跟踪 №4711 在 ②④⑤⑦ 分别遇到什么。",
+      focus: { rank: "<b>排序线</b>:①→⑥ 只回答「你有多可能喜欢它」。注意它在 ⑤ 之前对帖子来源一视同仁,只在融合时给关注外打折。", vis: "<b>可见性线</b>:⑦ 读的是离线打好的安全标签,和排序分数无关;规则按序评估,第一条回答 drop 的规则即终止。" },
+      map: "对照已开:右侧标签是行业漏斗的五层。粗排那一格是虚线 —— 𝕏 没有独立粗排层。",
+      track: {
+        thunder: ["Thunder(关注内)", [["②", "Thunder 直接返回关注账号的近期帖子,「已看过」在源头就剔除。"], ["④", "只受通用过滤(48 小时、静音词、拉黑等),不受关注外专属过滤。"], ["⑤", "不打关注外折扣;若它是转发或回复,仍会打折。"], ["⑦", "只跑通用规则集,「仅对推荐生效」的 drop 规则不适用 —— 关注者看得到。"]]],
+        phoenix: ["Phoenix 召回(关注外)", [["②", "双塔 ANN 检索命中:它的语义 ID 离你的用户向量最近。"], ["④", "额外受 OONRetweetReplyFilter(关注外的转发/回复被过滤)和新用户最低互动阈值。"], ["⑤", "最终分乘关注外折扣(< 1)。"], ["⑦", "额外一组仅对推荐生效的 drop 规则,如高召回疑似垃圾 —— 同一条帖子对关注者照常展示。"]]],
+        simclusters: ["SimClusters(关注外)", [["②", "互动聚类相似命中:和你互动过的人聚在同一簇。"], ["④", "与 Phoenix 相同,另加 OONNsfwSimclustersFilter:作者带成人内容标记则过滤。"], ["⑤", "最终分乘关注外折扣(< 1)。"], ["⑦", "额外一组仅对推荐生效的 drop 规则。"]]]
+      }
+    },
+    en: {
+      idle: "Pick \"Ranking line\" or \"Visibility line\" to fold the rest; tick \"Compare\" to see which cascade layer each step maps to; choose a source to track what №4711 meets at ②④⑤⑦.",
+      focus: { rank: "<b>Ranking line</b>: ①→⑥ only answers \"how likely are you to like this\". It treats sources alike until ⑤, where fusion discounts out-of-network posts.", vis: "<b>Visibility line</b>: ⑦ reads safety labels produced offline, independent of the ranking score; rules run in order and the first one answering drop ends evaluation." },
+      map: "Compare is on: the labels on the right are the five cascade layers. Pre-ranking is dashed — 𝕏 has no separate pre-ranking layer.",
+      track: {
+        thunder: ["Thunder (in-network)", [["②", "Thunder returns recent posts from followed accounts directly; \"already seen\" is removed at the source."], ["④", "Only the general filters apply (48 h, muted words, blocks); no out-of-network-only filters."], ["⑤", "No OON discount; if it is a repost or reply it is still discounted."], ["⑦", "Only the general rule set runs; the \"recommendations only\" drop rules don't apply — followers get to see it."]]],
+        phoenix: ["Phoenix retrieval (OON)", [["②", "Two-tower ANN hit: its semantic ID is nearest to your user vector."], ["④", "Additionally subject to OONRetweetReplyFilter (OON reposts/replies removed) and the new-user minimum-engagement threshold."], ["⑤", "Final score multiplied by the OON discount (< 1)."], ["⑦", "An extra set of recommendation-only drop rules, e.g. suspected spam at high recall — the same post is shown to followers as usual."]]],
+        simclusters: ["SimClusters (OON)", [["②", "Engagement-cluster hit: people who engage with what you engage with sit in the same cluster."], ["④", "Same as Phoenix, plus OONNsfwSimclustersFilter: dropped if the author carries an adult-content label."], ["⑤", "Final score multiplied by the OON discount (< 1)."], ["⑦", "An extra set of recommendation-only drop rules."]]]
+      }
+    }
+  };
+  var HIT = ["2", "4", "5", "7"];
+  document.querySelectorAll("[data-rp]").forEach(function (fig) {
+    var lang = fig.getAttribute("data-lang") || "zh", T = I18N[lang];
+    var svg = fig.querySelector(".rp-svg"), info = fig.querySelector("[data-rp-info]");
+    var stages = svg.querySelectorAll(".rp-stage"), srcs = svg.querySelectorAll(".rp-src");
+    var focusBtns = fig.querySelectorAll("[data-rp-focus]"), mapCb = fig.querySelector("[data-rp-map]"), trackSel = fig.querySelector("[data-rp-track]");
+    var focus = "all", track = "";
+    function apply() {
+      svg.classList.toggle("rp-focus", focus !== "all" || !!track);
+      stages.forEach(function (g) {
+        var line = g.getAttribute("data-line"), st = g.getAttribute("data-st");
+        var on = track ? HIT.indexOf(st) >= 0 : (focus === "all" || line === focus);
+        g.classList.toggle("on", on); g.classList.toggle("hit", !!track && HIT.indexOf(st) >= 0);
+      });
+      srcs.forEach(function (g) {
+        var s = g.getAttribute("data-src"), hit = !!track && ((track === "thunder") === (s === "thunder"));
+        g.classList.toggle("on", !track || hit); g.classList.toggle("hit", hit);
+      });
+      if (track) {
+        var t = T.track[track];
+        info.innerHTML = "<b>№4711 · " + t[0] + "</b><br>" + t[1].map(function (s) { return "<b>" + s[0] + "</b> " + s[1]; }).join("<br>");
+      } else if (focus !== "all") info.innerHTML = T.focus[focus];
+      else info.innerHTML = (mapCb.checked ? T.map + " " : "") + T.idle;
+    }
+    focusBtns.forEach(function (b) {
+      b.addEventListener("click", function () {
+        focus = b.getAttribute("data-rp-focus");
+        focusBtns.forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+        apply();
+      });
+    });
+    mapCb.addEventListener("change", function () { svg.classList.toggle("rp-mapon", mapCb.checked); apply(); });
+    trackSel.addEventListener("change", function () { track = trackSel.value; apply(); });
+    apply();
+  });
+})();
+
+/* ───────────── 天平 / balance scale ───────────── */
+(function () {
+  if (!window.d3) return;
+  var I18N = {
+    zh: { hero: "№4711", ref: "对照帖", tip: { a: "天平偏向 №4711", b: "天平偏向对照帖", eq: "基本平衡" }, prompt: "先猜:把「举报」从 0.02% 拖到 0.10%,天平会翻向对照帖吗?拖了再看。", result: function (a, b) { return "现在 №4711 = " + sgn(a) + ",对照帖 = " + sgn(b) + " → " + (a > b + 0.002 ? "偏向 №4711" : a < b - 0.002 ? "偏向对照帖" : "基本平衡") + "。差的不是「几个赞」,是「价格 × 概率」的合计。"; } },
+    en: { hero: "№4711", ref: "reference", tip: { a: "tips toward №4711", b: "tips toward the reference post", eq: "roughly balanced" }, prompt: "Predict first: drag \"Report\" from 0.02% to 0.10% — does the beam tip toward the reference post? Then drag.", result: function (a, b) { return "Now №4711 = " + sgn(a) + ", reference = " + sgn(b) + " → " + (a > b + 0.002 ? "tips toward №4711" : a < b - 0.002 ? "tips toward the reference post" : "roughly balanced") + ". The difference is not \"a few likes\"; it is the sum of price × probability."; } }
+  };
+  function sgn(v) { return (v >= 0 ? "+" : "") + v.toFixed(3); }
+  var W = [0.5, 5, 1, 4, -43.2, -234], REF_P = [8, 1, 2, 0.3, 0.15, 0.003];
+  var REF = REF_P.reduce(function (s, p, i) { return s + W[i] * p / 100; }, 0);
+
+  document.querySelectorAll("[data-bs]").forEach(function (fig) {
+    var lang = fig.getAttribute("data-lang") || "zh", T = I18N[lang];
+    var svg = d3.select(fig.querySelector(".bs-svg")), info = fig.querySelector("[data-bs-info]");
+    var calc = fig.closest("section") && fig.closest("section").querySelector(".calc");
+    var CX = 320, CY = 150, HALF = 220, DROP = 44;
+    svg.append("path").attr("d", "M" + (CX - 26) + " 226 L" + (CX + 26) + " 226 L" + CX + " " + CY + " Z").attr("fill", "var(--slate-soft)").attr("stroke", "currentColor").attr("stroke-width", 1.2);
+    svg.append("line").attr("x1", 40).attr("x2", 600).attr("y1", 226).attr("y2", 226).attr("stroke", "var(--line)");
+    var beam = svg.append("line").attr("class", "bs-beam");
+    var sL = svg.append("line").attr("class", "bs-string"), sR = svg.append("line").attr("class", "bs-string");
+    var pL = svg.append("rect").attr("class", "bs-pan").attr("width", 130).attr("height", 10).attr("rx", 3);
+    var pR = svg.append("rect").attr("class", "bs-pan").attr("width", 130).attr("height", 10).attr("rx", 3);
+    var tL = svg.append("text").attr("class", "dg-title").attr("text-anchor", "middle").style("fill", "var(--accent)");
+    var vL = svg.append("text").attr("class", "dg-mono").attr("text-anchor", "middle");
+    var tR = svg.append("text").attr("class", "dg-title").attr("text-anchor", "middle");
+    var vR = svg.append("text").attr("class", "dg-mono").attr("text-anchor", "middle");
+    var tip = svg.append("text").attr("class", "dg-note").attr("x", CX).attr("y", 30).attr("text-anchor", "middle");
+    svg.append("circle").attr("cx", CX).attr("cy", CY).attr("r", 5).attr("fill", "currentColor");
+    var touched = false;
+
+    function render(a, animate) {
+      var th = Math.max(-12, Math.min(12, (a - REF) * 120)) * Math.PI / 180;
+      var lx = CX - HALF * Math.cos(th), ly = CY + HALF * Math.sin(th);
+      var rx = CX + HALF * Math.cos(th), ry = CY - HALF * Math.sin(th);
+      var t = animate ? d3.transition().duration(dur(500)) : null;
+      function S(s) { return t ? s.transition(t) : s; }
+      S(beam).attr("x1", lx).attr("y1", ly).attr("x2", rx).attr("y2", ry);
+      S(sL).attr("x1", lx).attr("y1", ly).attr("x2", lx).attr("y2", ly + DROP);
+      S(sR).attr("x1", rx).attr("y1", ry).attr("x2", rx).attr("y2", ry + DROP);
+      S(pL).attr("x", lx - 65).attr("y", ly + DROP);
+      S(pR).attr("x", rx - 65).attr("y", ry + DROP);
+      S(tL).attr("x", lx).attr("y", ly + DROP - 22); tL.text(T.hero);
+      S(vL).attr("x", lx).attr("y", ly + DROP - 6); vL.text(sgn(a));
+      S(tR).attr("x", rx).attr("y", ry + DROP - 22); tR.text(T.ref);
+      S(vR).attr("x", rx).attr("y", ry + DROP - 6); vR.text(sgn(REF));
+      tip.text(a > REF + 0.002 ? T.tip.a : a < REF - 0.002 ? T.tip.b : T.tip.eq);
+      info.textContent = touched ? T.result(a, REF) : T.prompt;
+    }
+    var current = 0;
+    if (calc) {
+      calc.addEventListener("calc:update", function (e) { current = e.detail.total; render(current, true); });
+      calc.addEventListener("input", function () { touched = true; });
+      var v = calc.querySelector(".calc-total-val");
+      current = v ? parseFloat(v.textContent) || 0 : 0;
+    }
+    render(current, false);
+  });
+})();
+
+/* ───────────── 队列与门卫 / queue and bouncer ───────────── */
+(function () {
+  var I18N = {
+    zh: {
+      queue: "队列 · 按精排分排序(顺序不随裁决变化)", door: "门卫 · 可见性过滤", hero: "№4711",
+      checks: { blocked: "作者被拉黑/静音?", label: "标签:", follows: "观看者关注作者?", verdict: "裁决" },
+      yes: "是", no: "否", labels: { none: "无", spam: "高召回疑似垃圾", adult: "成人媒体" },
+      verdict: { allow: "ALLOW · 正常展示", inter: "INTERSTITIAL · 隔层展示", drop: "DROP · 不展示" },
+      why: {
+        none: "没有任何安全标签 → 通用规则全部放行,ALLOW。队列里它还是第 2 名。",
+        spamDrop: "命中「仅对推荐生效」的规则:高召回疑似垃圾 + 观看者未关注作者 → DROP。它在队列里的位置没变,只是没被放进门。",
+        spamAllow: "同样的标签,但观看者关注了作者 → 这组规则不适用,ALLOW。系统宁可少推荐,也不在粉丝面前隐藏内容。",
+        adult: "成人媒体标签 → INTERSTITIAL:展示但隔一层,点击可展开。与是否关注无关(受观看者设置与地区影响)。"
+      }
+    },
+    en: {
+      queue: "Queue · in ranking order (unchanged by the verdict)", door: "Bouncer · visibility filtering", hero: "№4711",
+      checks: { blocked: "author blocked / muted?", label: "label:", follows: "viewer follows author?", verdict: "verdict" },
+      yes: "yes", no: "no", labels: { none: "none", spam: "suspected spam (high recall)", adult: "adult media" },
+      verdict: { allow: "ALLOW · shown normally", inter: "INTERSTITIAL · behind a cover", drop: "DROP · not shown" },
+      why: {
+        none: "No safety label → every general rule passes, ALLOW. It is still #2 in the queue.",
+        spamDrop: "A \"recommendations only\" rule fires: suspected spam at high recall + the viewer does not follow the author → DROP. Its place in the queue is unchanged; it just isn't let through the door.",
+        spamAllow: "Same label, but the viewer follows the author → that rule set does not apply, ALLOW. The system would rather recommend less than hide content from a creator's own followers.",
+        adult: "Adult-media label → INTERSTITIAL: shown behind a tap-through cover. Independent of following (subject to viewer settings and region)."
+      }
+    }
+  };
+  var QUEUE = [0.081, 0.034, 0.029, 0.021, 0.012, 0.004];
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, text) { var n = document.createElementNS(NS, tag); for (var k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; return n; }
+
+  document.querySelectorAll("[data-bq]").forEach(function (fig) {
+    var lang = fig.getAttribute("data-lang") || "zh", T = I18N[lang];
+    var svg = fig.querySelector(".bq-svg"), info = fig.querySelector("[data-bq-info]");
+    var follow = fig.querySelector("[data-bq-follow]"), label = fig.querySelector("[data-bq-label]");
+
+    svg.appendChild(el("text", { x: 20, y: 24, "class": "dg-mono" }, T.queue));
+    var tiles = QUEUE.map(function (s, i) {
+      var g = el("g", { "class": "bq-tile" + (i === 1 ? " hero" : ""), transform: "translate(" + (20 + i * 82) + ",40)" });
+      g.appendChild(el("rect", { width: 72, height: 58, rx: 6 }));
+      g.appendChild(el("text", { x: 36, y: 22, "text-anchor": "middle", "class": "dg-title" }, "#" + (i + 1)));
+      g.appendChild(el("text", { x: 36, y: 42, "text-anchor": "middle", "class": "dg-mono" }, i === 1 ? T.hero : "+" + s.toFixed(3)));
+      if (i === 1) { g.appendChild(el("text", { x: 36, y: 76, "text-anchor": "middle", "class": "dg-mono" }, "+" + s.toFixed(3))); }
+      svg.appendChild(g); return g;
+    });
+    var cover = el("rect", { x: 102, y: 40, width: 72, height: 58, rx: 6, "class": "bq-cover" }); cover.style.opacity = 0; svg.appendChild(cover);
+    var verdictT = el("text", { x: 20, y: 140, "class": "bq-verdict" }, ""); svg.appendChild(verdictT);
+    svg.appendChild(el("line", { x1: 138, y1: 100, x2: 138, y2: 120, stroke: "var(--muted)", "stroke-dasharray": "3 3" }));
+
+    /* 门与门卫 */
+    svg.appendChild(el("text", { x: 540, y: 24, "class": "dg-mono" }, T.door));
+    svg.appendChild(el("rect", { x: 540, y: 34, width: 200, height: 200, rx: 8, "class": "dg-box" }));
+    svg.appendChild(el("circle", { cx: 572, cy: 60, r: 10, fill: "currentColor" }));
+    svg.appendChild(el("path", { d: "M556 92 Q572 70 588 92 Z", fill: "currentColor" }));
+    var checks = {};
+    [["blocked", 66], ["label", 90], ["follows", 114], ["verdict", 150]].forEach(function (c) {
+      var t = el("text", { x: 604, y: c[1], "class": "bq-check" }, ""); svg.appendChild(t); checks[c[0]] = t;
+    });
+    var vBig = el("text", { x: 604, y: 176, "class": "bq-verdict" }, ""); svg.appendChild(vBig);
+    var noteT = el("text", { x: 604, y: 214, "class": "dg-note" }, ""); svg.appendChild(noteT);
+
+    function apply() {
+      var f = follow.checked, l = label.value, v, why;
+      if (l === "adult") { v = "inter"; why = T.why.adult; }
+      else if (l === "spam" && !f) { v = "drop"; why = T.why.spamDrop; }
+      else if (l === "spam") { v = "allow"; why = T.why.spamAllow; }
+      else { v = "allow"; why = T.why.none; }
+      tiles[1].classList.toggle("dropped", v === "drop");
+      cover.style.opacity = v === "inter" ? 1 : 0;
+      verdictT.textContent = T.verdict[v]; verdictT.setAttribute("class", "bq-verdict " + v);
+      checks.blocked.textContent = T.checks.blocked + " " + T.no;
+      checks.label.textContent = T.checks.label + " " + T.labels[l];
+      checks.follows.textContent = T.checks.follows + " " + (f ? T.yes : T.no);
+      checks.label.setAttribute("class", "bq-check" + (l !== "none" ? " fired" : ""));
+      checks.follows.setAttribute("class", "bq-check" + (l === "spam" ? " fired" : ""));
+      checks.verdict.textContent = T.checks.verdict + " ↓";
+      vBig.textContent = T.verdict[v].split(" · ")[0]; vBig.setAttribute("class", "bq-verdict " + v);
+      noteT.textContent = T.verdict[v].split(" · ")[1] || "";
+      info.textContent = why;
+    }
+    follow.addEventListener("change", apply); label.addEventListener("change", apply);
+    apply();
+  });
+})();
+</script>
+</body>
+</html>
