@@ -656,6 +656,15 @@
     .fp-band, .fp-rod, .fp-row text, .rp-stage, .rp-src, .rp-map, .bq-tile rect { transition: none; }
   }
 
+  /* ── archify 系统地图 ── */
+  .map-figure .map-frame { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+  .map-figure iframe { display: block; width: 100%; height: 780px; border: 0; }
+  .map-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); text-decoration: none; }
+  .map-card:hover { border-color: var(--accent); }
+  .map-card b { font-weight: 700; }
+  .map-card span { color: var(--muted); font-size: 0.86rem; }
+  .map-card .go { color: var(--accent); font-family: "IBM Plex Mono", monospace; font-size: 0.8rem; white-space: nowrap; }
+
 </style>
 </head>
 <body>
@@ -716,6 +725,14 @@
   </figure>
 
   <p>各层职责一句话:<strong>召回</strong>负责「别漏」(高召回率,宁滥勿缺),<strong>粗排</strong>负责「省钱」(轻模型控制精排算力),<strong>精排</strong>负责「排准」(重模型逐条预估),<strong>重排</strong>负责「好看」(多样性与业务规则),<strong>混排</strong>负责「营收与生态」(广告与运营内容)。各家叫法略有差异:粗排也叫轻排 / L1,精排也叫 L2 / Heavy Ranker。</p>
+
+  <figure class="ix-figure map-figure">
+    <div class="crumb">系统地图 A · 行业范式 › 级联漏斗(archify 生成,可交互)</div>
+    <p class="ix-title">同一条漏斗的「系统视角」:用右上角的引导视图,按「候选漏斗 / 特征与历史 / 广告并行」逐条看。</p>
+    <div class="map-frame"><iframe src="maps/classic-recsys.zh.html" loading="lazy" title="经典推荐系统级联漏斗 · 系统地图"></iframe></div>
+    <figcaption>地图 A · 经典推荐级联的数据流地图,由 <a href="https://github.com/tt-a1i/archify">archify</a> 从类型化 JSON 规格确定性渲染,并通过其 9 项版式校验。<a href="maps/classic-recsys.zh.html">全屏打开 ↗</a> · <a href="maps/src/classic-recsys.zh.dataflow.json">JSON 规格</a> · <a href="maps/classic-recsys.en.html">English</a></figcaption>
+  </figure>
+
 
   <h3>延迟分账:从下拉到内容出现</h3>
   <p>面板下半就是延迟预算的分账。用户下拉刷新的忍耐上限决定了体感总延时:典型请求(P50)约 400ms,尾部(P99)可到 800ms;服务端排序预算按 P99 设,约 300ms。三个让账面 ≠ 体感的机制,都能在面板上亲手验证:</p>
@@ -847,6 +864,14 @@
     <div class="ix-info" data-rp-info></div>
     <figcaption>图 2 · 𝕏 的请求路径(总图)。每个阶段都可以独立开关,默认值在 <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer/params/param.rs"><code>home-mixer/params/param.rs</code></a>,官方用 cron 脚本把仓库默认值同步为线上生产值。</figcaption>
   </figure>
+
+  <figure class="ix-figure map-figure">
+    <div class="crumb">系统地图 B · 𝕏 请求路径 › 服务与源码(archify 生成,节点可跳转源码)</div>
+    <p class="ix-title">把讲义里的九个阶段落到真实服务上:上排是离线的打标签路径,下排是每次请求走的路;节点上的 SRC 标记直接链到 x-algorithm 的源码文件。</p>
+    <div class="map-frame"><iframe src="maps/x-for-you.zh.html" loading="lazy" title="𝕏 For You 信息流 · 服务架构地图"></iframe></div>
+    <figcaption>地图 B · 𝕏 For You 的服务架构地图。源码引用固定在 commit <span class="mono">45b48ba</span>,经 archify 的仓库证据校验(每个引用路径在该版本必须真实存在)。<a href="maps/x-for-you.zh.html">全屏打开 ↗</a> · <a href="maps/src/x-for-you.zh.architecture.json">JSON 规格</a> · <a href="maps/x-for-you.en.html">English</a></figcaption>
+  </figure>
+
 
   <h3>行业漏斗术语对照</h3>
   <div class="tbl-scroll">
@@ -1161,6 +1186,14 @@
 
   <p>Each layer in one line: <strong>retrieval</strong> must not miss (high recall — err on the side of too many), <strong>pre-ranking</strong> saves money (a light model protects the heavy model's compute), <strong>ranking</strong> gets the order right (heavy model, per-item prediction), <strong>re-ranking</strong> makes it pleasant (diversity and business rules), and <strong>blending</strong> pays the bills and feeds the ecosystem (ads and editorial content). Names vary by company: pre-ranking is also called light ranking / L1, ranking is L2 / the heavy ranker.</p>
 
+  <figure class="ix-figure map-figure">
+    <div class="crumb">System map A · Industry paradigm › Cascade (generated with archify, interactive)</div>
+    <p class="ix-title">The same funnel as a system map: use the guided views top-right to walk the candidate funnel, the feature path and the parallel ads auction one at a time.</p>
+    <div class="map-frame"><iframe src="maps/classic-recsys.en.html" loading="lazy" title="Classic recommendation cascade · system map"></iframe></div>
+    <figcaption>Map A · Data-flow map of the classic recommendation cascade, rendered deterministically by <a href="https://github.com/tt-a1i/archify">archify</a> from a typed JSON spec and passed through its nine layout checks. <a href="maps/classic-recsys.en.html">Open full screen ↗</a> · <a href="maps/src/classic-recsys.dataflow.json">JSON spec</a> · <a href="maps/classic-recsys.zh.html">中文</a></figcaption>
+  </figure>
+
+
   <h3>The latency ledger: from pull-to-refresh to content on screen</h3>
   <p>The bottom half of the panel is the latency budget, itemised. A user's patience on pull-to-refresh caps perceived end-to-end latency: a typical request (P50) lands around 400 ms, the tail (P99) can reach 800 ms; the server-side ranking budget is set at P99, about 300 ms. Three reasons the ledger differs from what users feel — each can be verified by hand on the panel:</p>
   <ul class="tight">
@@ -1291,6 +1324,14 @@
     <div class="ix-info" data-rp-info></div>
     <figcaption>Fig. 2 · 𝕏's request path (overview). Every stage can be switched on and off individually; defaults live in <a href="https://github.com/xai-org/x-algorithm/blob/45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e/home-mixer/params/param.rs"><code>home-mixer/params/param.rs</code></a>, and a cron job syncs the repository defaults to production values.</figcaption>
   </figure>
+
+  <figure class="ix-figure map-figure">
+    <div class="crumb">System map B · 𝕏 request path › services and source (generated with archify, nodes link to code)</div>
+    <p class="ix-title">The nine stages of the lecture landed on real services: the labeling path on top runs offline, the request path below runs per request; the SRC badges on each node open the x-algorithm source files.</p>
+    <div class="map-frame"><iframe src="maps/x-for-you.en.html" loading="lazy" title="𝕏 For You feed · service architecture map"></iframe></div>
+    <figcaption>Map B · Service architecture of 𝕏 For You. Source references are pinned to commit <span class="mono">45b48ba</span> and verified by archify\'s repository-evidence check (every referenced path must exist at that revision). <a href="maps/x-for-you.en.html">Open full screen ↗</a> · <a href="maps/src/x-for-you.architecture.json">JSON spec</a> · <a href="maps/x-for-you.zh.html">中文</a></figcaption>
+  </figure>
+
 
   <h3>Funnel terminology, mapped</h3>
   <div class="tbl-scroll">

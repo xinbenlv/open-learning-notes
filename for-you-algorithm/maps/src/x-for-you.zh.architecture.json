@@ -1,0 +1,455 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "𝕏 For You 信息流 — 请求路径与打标签路径",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/xai-org/x-algorithm",
+      "revision": "45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e"
+    },
+    "views": [
+      {
+        "id": "retrieval",
+        "label": "召回通道",
+        "focus": [
+          "home-mixer",
+          "thunder",
+          "phoenix-retrieval",
+          "simclusters",
+          "feature-store"
+        ],
+        "note": "三路并行召回:一路关注内、两路关注外;候选在特征水合处汇合。"
+      },
+      {
+        "id": "ranking",
+        "label": "排序线",
+        "focus": [
+          "feature-store",
+          "phoenix-ranker",
+          "vm-ranker"
+        ],
+        "note": "水合、预测每种行为概率、加权融合,再做多样性重排。"
+      },
+      {
+        "id": "visibility",
+        "label": "可见性线",
+        "focus": [
+          "visibility-filtering",
+          "label-store",
+          "labeling-rules",
+          "models"
+        ],
+        "note": "标签在请求路径之外持续产出;请求路径只做读取。"
+      }
+    ]
+  },
+  "layout": {
+    "mode": "grid",
+    "cols": 6,
+    "cellW": 160,
+    "cellH": 64,
+    "gapX": 54,
+    "gapY": 44
+  },
+  "components": [
+    {
+      "id": "post-stream",
+      "type": "messagebus",
+      "label": "帖子事件流",
+      "sublabel": "Kafka",
+      "row": 0,
+      "col": 1,
+      "sources": [
+        {
+          "path": "thunder/kafka/mod.rs",
+          "label": "Thunder Kafka consumer"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "models",
+      "type": "backend",
+      "label": "内容理解模型",
+      "sublabel": "内容 · 账号模型",
+      "row": 0,
+      "col": 3,
+      "sources": [
+        {
+          "path": "grox/core/dispatcher.py",
+          "label": "Grox dispatcher"
+        },
+        {
+          "path": "agatha/scalding/NSFWBuildJob.scala",
+          "label": "Agatha job"
+        },
+        {
+          "path": "user-cred-v2/Edge.scala",
+          "label": "UserCred v2"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "labeling-rules",
+      "type": "security",
+      "label": "打标签规则",
+      "sublabel": "Scarecrow · Botmaker · AES",
+      "row": 0,
+      "col": 4,
+      "sources": [
+        {
+          "path": "scarecrow/ScarecrowBotMaker.scala",
+          "label": "Scarecrow"
+        },
+        {
+          "path": "botmaker-rules/scarecrow/bot/PinnedLowQualityOrBadUrl.bot",
+          "label": "a botmaker rule"
+        },
+        {
+          "path": "abuse-enforcement-service/types/src/config.rs",
+          "label": "abuse enforcement"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "label-store",
+      "type": "database",
+      "label": "安全标签",
+      "sublabel": "离线写入 · 在线读取",
+      "row": 0,
+      "col": 5,
+      "sources": [
+        {
+          "path": "safety-label-user-agg/safetyLabelToUserLevelAggregationV2Forwarder.strato",
+          "label": "label aggregation"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "home-mixer",
+      "type": "backend",
+      "label": "Home Mixer",
+      "sublabel": "候选管线 · Rust",
+      "row": 2,
+      "col": 0,
+      "tag": "每次请求",
+      "sources": [
+        {
+          "path": "home-mixer/candidate_pipeline/phoenix_candidate_pipeline.rs",
+          "label": "PhoenixCandidatePipeline"
+        },
+        {
+          "path": "home-mixer/params/param.rs",
+          "label": "weights & params"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "thunder",
+      "type": "backend",
+      "label": "Thunder",
+      "sublabel": "关注内 · 常驻内存",
+      "row": 1,
+      "col": 1,
+      "sources": [
+        {
+          "path": "thunder/thunder_service.rs",
+          "label": "ThunderService"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "phoenix-retrieval",
+      "type": "backend",
+      "label": "Phoenix 召回",
+      "sublabel": "关注外 · 双塔 ANN",
+      "row": 2,
+      "col": 1,
+      "sources": [
+        {
+          "path": "phoenix/README.md",
+          "label": "Phoenix"
+        },
+        {
+          "path": "phoenix-rankall/build.rs",
+          "label": "index maintenance"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "simclusters",
+      "type": "backend",
+      "label": "SimClusters",
+      "sublabel": "关注外 · 互动聚类",
+      "row": 3,
+      "col": 1,
+      "sources": [
+        {
+          "path": "simclusters/simclustersann/SimclustersAnnServer.scala",
+          "label": "SimClusters ANN"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "feature-store",
+      "type": "database",
+      "label": "特征水合",
+      "sublabel": "帖子 · 作者 · 标签",
+      "row": 2,
+      "col": 2,
+      "sources": [
+        {
+          "path": "home-mixer/candidate_hydrators/mod.rs",
+          "label": "candidate hydrators"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "phoenix-ranker",
+      "type": "backend",
+      "label": "Phoenix 精排",
+      "sublabel": "Transformer · P(行为)",
+      "row": 2,
+      "col": 3,
+      "tag": "最大开销",
+      "sources": [
+        {
+          "path": "home-mixer/scorers/phoenix_scorer.rs",
+          "label": "PhoenixScorer"
+        },
+        {
+          "path": "home-mixer/scorers/ranking_scorer.rs",
+          "label": "RankingScorer"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "vm-ranker",
+      "type": "backend",
+      "label": "VM Ranker",
+      "sublabel": "DPP 多样性重排",
+      "row": 2,
+      "col": 4,
+      "sources": [
+        {
+          "path": "vm-ranker/lib.rs",
+          "label": "VM Ranker"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "visibility-filtering",
+      "type": "security",
+      "label": "可见性过滤",
+      "sublabel": "允许 · 隔层 · 删除",
+      "row": 2,
+      "col": 5,
+      "sources": [
+        {
+          "path": "visibility-filtering/rules/registry.rs",
+          "label": "rule registry"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "请求路径 · 每次请求,服务端预算约 300 ms",
+      "wraps": [
+        "home-mixer",
+        "thunder",
+        "phoenix-retrieval",
+        "simclusters",
+        "feature-store",
+        "phoenix-ranker",
+        "vm-ranker",
+        "visibility-filtering"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "打标签路径 · 持续运行,不在请求路径上",
+      "wraps": [
+        "post-stream",
+        "models",
+        "labeling-rules",
+        "label-store"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "mixer-thunder",
+      "from": "home-mixer",
+      "to": "thunder",
+      "label": "关注内",
+      "labelSegment": 1
+    },
+    {
+      "id": "mixer-phoenix",
+      "from": "home-mixer",
+      "to": "phoenix-retrieval",
+      "variant": "emphasis"
+    },
+    {
+      "id": "mixer-simclusters",
+      "from": "home-mixer",
+      "to": "simclusters",
+      "label": "关注外",
+      "labelSegment": 1
+    },
+    {
+      "id": "thunder-hydrate",
+      "from": "thunder",
+      "to": "feature-store",
+      "label": "候选",
+      "labelSegment": 1
+    },
+    {
+      "id": "phoenix-hydrate",
+      "from": "phoenix-retrieval",
+      "to": "feature-store",
+      "variant": "emphasis"
+    },
+    {
+      "id": "simclusters-hydrate",
+      "from": "simclusters",
+      "to": "feature-store",
+      "label": "候选",
+      "labelSegment": 1
+    },
+    {
+      "id": "hydrate-score",
+      "from": "feature-store",
+      "to": "phoenix-ranker",
+      "label": "~10²",
+      "variant": "emphasis"
+    },
+    {
+      "id": "score-rerank",
+      "from": "phoenix-ranker",
+      "to": "vm-ranker",
+      "label": "已打分",
+      "variant": "emphasis"
+    },
+    {
+      "id": "rerank-vf",
+      "from": "vm-ranker",
+      "to": "visibility-filtering",
+      "label": "已排序",
+      "variant": "emphasis"
+    },
+    {
+      "id": "vf-labels",
+      "from": "visibility-filtering",
+      "to": "label-store",
+      "label": "读标签",
+      "variant": "security"
+    },
+    {
+      "id": "rules-labels",
+      "from": "labeling-rules",
+      "to": "label-store",
+      "label": "写入",
+      "variant": "security"
+    },
+    {
+      "id": "stream-thunder",
+      "from": "post-stream",
+      "to": "thunder",
+      "label": "新帖",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "id": "stream-models",
+      "from": "post-stream",
+      "to": "models",
+      "label": "帖子与媒体",
+      "variant": "dashed"
+    },
+    {
+      "id": "models-rules",
+      "from": "models",
+      "to": "labeling-rules",
+      "label": "分数"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "请求路径",
+      "items": [
+        "Home Mixer 每次请求编排整条管线:召回、水合、过滤、打分、选择、混排、响应",
+        "三路召回并行;一个 Transformer 统一打分",
+        "关注外 = 来自观看者未关注账号的帖子"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "排序 ≠ 可见性",
+      "items": [
+        "排序决定顺序",
+        "可见性过滤依据离线产出的标签,决定一条帖子能否展示"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "没有独立粗排层",
+      "items": [
+        "召回加规则过滤,直接把数百条交给重模型",
+        "候选隔离让分数可缓存"
+      ]
+    }
+  ]
+}

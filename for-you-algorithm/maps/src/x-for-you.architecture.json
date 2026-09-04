@@ -1,0 +1,455 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "𝕏 For You feed — request path and labeling path",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/xai-org/x-algorithm",
+      "revision": "45b48ba6baa40e212f6dcbaf8fe9fdc8d9da722e"
+    },
+    "views": [
+      {
+        "id": "retrieval",
+        "label": "Retrieval channels",
+        "focus": [
+          "home-mixer",
+          "thunder",
+          "phoenix-retrieval",
+          "simclusters",
+          "feature-store"
+        ],
+        "note": "Three channels queried in parallel: one in-network, two out-of-network; candidates merge at hydration."
+      },
+      {
+        "id": "ranking",
+        "label": "Ranking line",
+        "focus": [
+          "feature-store",
+          "phoenix-ranker",
+          "vm-ranker"
+        ],
+        "note": "Hydrate, predict every action probability, fuse with weights, then re-rank for diversity."
+      },
+      {
+        "id": "visibility",
+        "label": "Visibility line",
+        "focus": [
+          "visibility-filtering",
+          "label-store",
+          "labeling-rules",
+          "models"
+        ],
+        "note": "Labels are produced continuously off the request path; the request path only reads them."
+      }
+    ]
+  },
+  "layout": {
+    "mode": "grid",
+    "cols": 6,
+    "cellW": 160,
+    "cellH": 64,
+    "gapX": 54,
+    "gapY": 44
+  },
+  "components": [
+    {
+      "id": "post-stream",
+      "type": "messagebus",
+      "label": "Post event stream",
+      "sublabel": "Kafka",
+      "row": 0,
+      "col": 1,
+      "sources": [
+        {
+          "path": "thunder/kafka/mod.rs",
+          "label": "Thunder Kafka consumer"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "models",
+      "type": "backend",
+      "label": "Understanding models",
+      "sublabel": "content · account models",
+      "row": 0,
+      "col": 3,
+      "sources": [
+        {
+          "path": "grox/core/dispatcher.py",
+          "label": "Grox dispatcher"
+        },
+        {
+          "path": "agatha/scalding/NSFWBuildJob.scala",
+          "label": "Agatha job"
+        },
+        {
+          "path": "user-cred-v2/Edge.scala",
+          "label": "UserCred v2"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "labeling-rules",
+      "type": "security",
+      "label": "Labeling rules",
+      "sublabel": "Scarecrow · Botmaker · AES",
+      "row": 0,
+      "col": 4,
+      "sources": [
+        {
+          "path": "scarecrow/ScarecrowBotMaker.scala",
+          "label": "Scarecrow"
+        },
+        {
+          "path": "botmaker-rules/scarecrow/bot/PinnedLowQualityOrBadUrl.bot",
+          "label": "a botmaker rule"
+        },
+        {
+          "path": "abuse-enforcement-service/types/src/config.rs",
+          "label": "abuse enforcement"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "label-store",
+      "type": "database",
+      "label": "Safety labels",
+      "sublabel": "offline write · online read",
+      "row": 0,
+      "col": 5,
+      "sources": [
+        {
+          "path": "safety-label-user-agg/safetyLabelToUserLevelAggregationV2Forwarder.strato",
+          "label": "label aggregation"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "home-mixer",
+      "type": "backend",
+      "label": "Home Mixer",
+      "sublabel": "candidate pipeline · Rust",
+      "row": 2,
+      "col": 0,
+      "tag": "per request",
+      "sources": [
+        {
+          "path": "home-mixer/candidate_pipeline/phoenix_candidate_pipeline.rs",
+          "label": "PhoenixCandidatePipeline"
+        },
+        {
+          "path": "home-mixer/params/param.rs",
+          "label": "weights & params"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "thunder",
+      "type": "backend",
+      "label": "Thunder",
+      "sublabel": "in-network · in memory",
+      "row": 1,
+      "col": 1,
+      "sources": [
+        {
+          "path": "thunder/thunder_service.rs",
+          "label": "ThunderService"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "phoenix-retrieval",
+      "type": "backend",
+      "label": "Phoenix retrieval",
+      "sublabel": "OON · two-tower ANN",
+      "row": 2,
+      "col": 1,
+      "sources": [
+        {
+          "path": "phoenix/README.md",
+          "label": "Phoenix"
+        },
+        {
+          "path": "phoenix-rankall/build.rs",
+          "label": "index maintenance"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "simclusters",
+      "type": "backend",
+      "label": "SimClusters",
+      "sublabel": "OON · engagement clusters",
+      "row": 3,
+      "col": 1,
+      "sources": [
+        {
+          "path": "simclusters/simclustersann/SimclustersAnnServer.scala",
+          "label": "SimClusters ANN"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "feature-store",
+      "type": "database",
+      "label": "Feature hydration",
+      "sublabel": "post · author · labels",
+      "row": 2,
+      "col": 2,
+      "sources": [
+        {
+          "path": "home-mixer/candidate_hydrators/mod.rs",
+          "label": "candidate hydrators"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "phoenix-ranker",
+      "type": "backend",
+      "label": "Phoenix ranking",
+      "sublabel": "Transformer · P(action)",
+      "row": 2,
+      "col": 3,
+      "tag": "largest cost",
+      "sources": [
+        {
+          "path": "home-mixer/scorers/phoenix_scorer.rs",
+          "label": "PhoenixScorer"
+        },
+        {
+          "path": "home-mixer/scorers/ranking_scorer.rs",
+          "label": "RankingScorer"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "vm-ranker",
+      "type": "backend",
+      "label": "VM Ranker",
+      "sublabel": "DPP diversity re-rank",
+      "row": 2,
+      "col": 4,
+      "sources": [
+        {
+          "path": "vm-ranker/lib.rs",
+          "label": "VM Ranker"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "visibility-filtering",
+      "type": "security",
+      "label": "Visibility filtering",
+      "sublabel": "allow · interstitial · drop",
+      "row": 2,
+      "col": 5,
+      "sources": [
+        {
+          "path": "visibility-filtering/rules/registry.rs",
+          "label": "rule registry"
+        }
+      ],
+      "size": [
+        150,
+        62
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Request path · per request, ~300 ms server budget",
+      "wraps": [
+        "home-mixer",
+        "thunder",
+        "phoenix-retrieval",
+        "simclusters",
+        "feature-store",
+        "phoenix-ranker",
+        "vm-ranker",
+        "visibility-filtering"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Labeling path · continuous, off the request path",
+      "wraps": [
+        "post-stream",
+        "models",
+        "labeling-rules",
+        "label-store"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "mixer-thunder",
+      "from": "home-mixer",
+      "to": "thunder",
+      "label": "in-network",
+      "labelSegment": 1
+    },
+    {
+      "id": "mixer-phoenix",
+      "from": "home-mixer",
+      "to": "phoenix-retrieval",
+      "variant": "emphasis"
+    },
+    {
+      "id": "mixer-simclusters",
+      "from": "home-mixer",
+      "to": "simclusters",
+      "label": "OON",
+      "labelSegment": 1
+    },
+    {
+      "id": "thunder-hydrate",
+      "from": "thunder",
+      "to": "feature-store",
+      "label": "candidates",
+      "labelSegment": 1
+    },
+    {
+      "id": "phoenix-hydrate",
+      "from": "phoenix-retrieval",
+      "to": "feature-store",
+      "variant": "emphasis"
+    },
+    {
+      "id": "simclusters-hydrate",
+      "from": "simclusters",
+      "to": "feature-store",
+      "label": "candidates",
+      "labelSegment": 1
+    },
+    {
+      "id": "hydrate-score",
+      "from": "feature-store",
+      "to": "phoenix-ranker",
+      "label": "~10²",
+      "variant": "emphasis"
+    },
+    {
+      "id": "score-rerank",
+      "from": "phoenix-ranker",
+      "to": "vm-ranker",
+      "label": "scored",
+      "variant": "emphasis"
+    },
+    {
+      "id": "rerank-vf",
+      "from": "vm-ranker",
+      "to": "visibility-filtering",
+      "label": "ranked",
+      "variant": "emphasis"
+    },
+    {
+      "id": "vf-labels",
+      "from": "visibility-filtering",
+      "to": "label-store",
+      "label": "read labels",
+      "variant": "security"
+    },
+    {
+      "id": "rules-labels",
+      "from": "labeling-rules",
+      "to": "label-store",
+      "label": "write",
+      "variant": "security"
+    },
+    {
+      "id": "stream-thunder",
+      "from": "post-stream",
+      "to": "thunder",
+      "label": "new posts",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "id": "stream-models",
+      "from": "post-stream",
+      "to": "models",
+      "label": "posts & media",
+      "variant": "dashed"
+    },
+    {
+      "id": "models-rules",
+      "from": "models",
+      "to": "labeling-rules",
+      "label": "scores"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Request path",
+      "items": [
+        "Home Mixer orchestrates the pipeline per request: retrieve, hydrate, filter, score, select, blend, respond",
+        "Three retrieval channels in parallel; one Transformer scores them all",
+        "OON = out-of-network: posts from accounts the viewer does not follow"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Ranking ≠ visibility",
+      "items": [
+        "Ranking decides the order",
+        "Visibility filtering decides whether a post can be shown at all, from labels produced offline"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "No separate pre-ranking layer",
+      "items": [
+        "Retrieval plus rule filters hand a few hundred posts straight to the heavy ranker",
+        "Candidate isolation keeps scores cacheable"
+      ]
+    }
+  ]
+}

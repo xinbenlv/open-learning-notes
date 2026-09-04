@@ -16,6 +16,10 @@ Site: **https://xinbenlv.github.io/open-learning-notes/**
 
 Each note is a single self-contained HTML file: open it in any browser, no build step. Figures follow your light/dark theme.
 
+## System maps · 系统地图
+
+Each note can carry interactive architecture maps rendered with [archify](https://github.com/tt-a1i/archify) from typed JSON specs (see [`for-you-algorithm/maps/`](for-you-algorithm/maps/)). Map B of the For You note links every service node to its source file in `xai-org/x-algorithm`, verified at the pinned commit.
+
 ## How to participate · 如何参与
 
 - **Feynman PR** — you can explain a concept more simply, or make a figure teach a relationship better? Open a pull request. The first line of your PR should say *which concept you made simpler*.

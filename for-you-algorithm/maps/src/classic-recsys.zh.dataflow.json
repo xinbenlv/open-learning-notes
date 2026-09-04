@@ -1,0 +1,245 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "经典推荐系统级联漏斗",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "funnel",
+        "label": "候选漏斗",
+        "focus": [
+          "corpus",
+          "retrieval",
+          "prerank",
+          "ranker",
+          "rerank",
+          "blend"
+        ],
+        "note": "跟着数量走:每一层存在的理由,是让下一层更重的模型看到更少的候选。"
+      },
+      {
+        "id": "features",
+        "label": "特征与历史",
+        "focus": [
+          "history",
+          "features",
+          "retrieval",
+          "ranker"
+        ],
+        "note": "用户近期行为驱动召回;水合后的特征喂给精排模型。"
+      },
+      {
+        "id": "parallel",
+        "label": "广告并行",
+        "focus": [
+          "ads",
+          "blend",
+          "rerank"
+        ],
+        "note": "广告竞价与自然内容管线并行,只在混排时合并。"
+      }
+    ],
+    "viewBox": [
+      1068,
+      470
+    ]
+  },
+  "stages": [
+    {
+      "label": "来源"
+    },
+    {
+      "label": "召回"
+    },
+    {
+      "label": "粗排"
+    },
+    {
+      "label": "精排"
+    },
+    {
+      "label": "重排与混排"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "corpus",
+      "type": "database",
+      "label": "内容库",
+      "sublabel": "百万级条目",
+      "stage": 0,
+      "row": 0,
+      "tag": "离线建索引",
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "history",
+      "type": "database",
+      "label": "用户历史",
+      "sublabel": "近期行为",
+      "stage": 0,
+      "row": 1,
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "retrieval",
+      "type": "backend",
+      "label": "召回通道",
+      "sublabel": "ANN · 协同 · 关注图",
+      "stage": 1,
+      "row": 0,
+      "tag": "并行",
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "prerank",
+      "type": "backend",
+      "label": "粗排模型",
+      "sublabel": "轻量模型",
+      "stage": 2,
+      "row": 0,
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "features",
+      "type": "database",
+      "label": "特征库",
+      "sublabel": "水合后的特征",
+      "stage": 2,
+      "row": 1,
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "ranker",
+      "type": "backend",
+      "label": "精排模型",
+      "sublabel": "多目标 P(行为)",
+      "stage": 3,
+      "row": 0,
+      "tag": "最大开销",
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "ads",
+      "type": "external",
+      "label": "广告竞价",
+      "sublabel": "与自然内容并行",
+      "stage": 3,
+      "row": 1,
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "rerank",
+      "type": "backend",
+      "label": "重排",
+      "sublabel": "多样性 · 业务规则",
+      "stage": 4,
+      "row": 0,
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "blend",
+      "type": "backend",
+      "label": "混排",
+      "sublabel": "Top N 进入信息流",
+      "stage": 4,
+      "row": 1,
+      "height": 60,
+      "width": 120
+    }
+  ],
+  "flows": [
+    {
+      "id": "corpus-to-retrieval",
+      "from": "corpus",
+      "to": "retrieval",
+      "label": "百万 → ~10⁴",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "history-to-retrieval",
+      "from": "history",
+      "to": "retrieval",
+      "label": "用户向量"
+    },
+    {
+      "id": "retrieval-to-prerank",
+      "from": "retrieval",
+      "to": "prerank",
+      "label": "~10⁴ → ~10³",
+      "variant": "emphasis"
+    },
+    {
+      "id": "features-to-ranker",
+      "from": "features",
+      "to": "ranker",
+      "label": "水合候选"
+    },
+    {
+      "id": "prerank-to-ranker",
+      "from": "prerank",
+      "to": "ranker",
+      "label": "~10³ → ~10²",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "ranker-to-rerank",
+      "from": "ranker",
+      "to": "rerank",
+      "label": "已打分 ~10²",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ads-to-blend",
+      "from": "ads",
+      "to": "blend",
+      "label": "中标广告",
+      "variant": "dashed"
+    },
+    {
+      "id": "rerank-to-blend",
+      "from": "rerank",
+      "to": "blend",
+      "label": "排好的帖子",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "为什么分层",
+      "items": [
+        "每一层便宜的筛子,都是为了让贵的那一层少看几条",
+        "成本由到达精排的数量决定,而不是进入漏斗的数量"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "延迟预算",
+      "items": [
+        "服务端排序在 P99 下约 300 ms",
+        "精排独占其中最大一块"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "不在关键路径上的",
+      "items": [
+        "广告竞价与自然内容管线并行",
+        "建索引与特征计算都在离线完成"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,245 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Classic recommendation cascade",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "funnel",
+        "label": "Candidate funnel",
+        "focus": [
+          "corpus",
+          "retrieval",
+          "prerank",
+          "ranker",
+          "rerank",
+          "blend"
+        ],
+        "note": "Follow the counts: each layer exists so the next, heavier model sees fewer items."
+      },
+      {
+        "id": "features",
+        "label": "Features and history",
+        "focus": [
+          "history",
+          "features",
+          "retrieval",
+          "ranker"
+        ],
+        "note": "The user's recent actions drive retrieval; hydrated features feed the heavy ranker."
+      },
+      {
+        "id": "parallel",
+        "label": "Ads run in parallel",
+        "focus": [
+          "ads",
+          "blend",
+          "rerank"
+        ],
+        "note": "The ads auction runs beside the organic pipeline and merges only at blending."
+      }
+    ],
+    "viewBox": [
+      1068,
+      470
+    ]
+  },
+  "stages": [
+    {
+      "label": "Sources"
+    },
+    {
+      "label": "Retrieval"
+    },
+    {
+      "label": "Pre-ranking"
+    },
+    {
+      "label": "Ranking"
+    },
+    {
+      "label": "Re-rank & blend"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "corpus",
+      "type": "database",
+      "label": "Content corpus",
+      "sublabel": "millions",
+      "stage": 0,
+      "row": 0,
+      "tag": "indexed offline",
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "history",
+      "type": "database",
+      "label": "User history",
+      "sublabel": "recent actions",
+      "stage": 0,
+      "row": 1,
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "retrieval",
+      "type": "backend",
+      "label": "Retrieval channels",
+      "sublabel": "ANN · CF · graph",
+      "stage": 1,
+      "row": 0,
+      "tag": "parallel",
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "prerank",
+      "type": "backend",
+      "label": "Pre-ranker",
+      "sublabel": "light model",
+      "stage": 2,
+      "row": 0,
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "features",
+      "type": "database",
+      "label": "Feature store",
+      "sublabel": "hydrated features",
+      "stage": 2,
+      "row": 1,
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "ranker",
+      "type": "backend",
+      "label": "Heavy ranker",
+      "sublabel": "P(action) model",
+      "stage": 3,
+      "row": 0,
+      "tag": "largest cost",
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "ads",
+      "type": "external",
+      "label": "Ads auction",
+      "sublabel": "runs in parallel",
+      "stage": 3,
+      "row": 1,
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "rerank",
+      "type": "backend",
+      "label": "Re-ranker",
+      "sublabel": "diversity · rules",
+      "stage": 4,
+      "row": 0,
+      "height": 60,
+      "width": 120
+    },
+    {
+      "id": "blend",
+      "type": "backend",
+      "label": "Blender",
+      "sublabel": "Top N to the feed",
+      "stage": 4,
+      "row": 1,
+      "height": 60,
+      "width": 120
+    }
+  ],
+  "flows": [
+    {
+      "id": "corpus-to-retrieval",
+      "from": "corpus",
+      "to": "retrieval",
+      "label": "millions → ~10⁴",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "history-to-retrieval",
+      "from": "history",
+      "to": "retrieval",
+      "label": "user embedding"
+    },
+    {
+      "id": "retrieval-to-prerank",
+      "from": "retrieval",
+      "to": "prerank",
+      "label": "~10⁴ → ~10³",
+      "variant": "emphasis"
+    },
+    {
+      "id": "features-to-ranker",
+      "from": "features",
+      "to": "ranker",
+      "label": "hydrate candidates"
+    },
+    {
+      "id": "prerank-to-ranker",
+      "from": "prerank",
+      "to": "ranker",
+      "label": "~10³ → ~10²",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "ranker-to-rerank",
+      "from": "ranker",
+      "to": "rerank",
+      "label": "scored ~10²",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ads-to-blend",
+      "from": "ads",
+      "to": "blend",
+      "label": "won ads",
+      "variant": "dashed"
+    },
+    {
+      "id": "rerank-to-blend",
+      "from": "rerank",
+      "to": "blend",
+      "label": "ordered posts",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Why layers",
+      "items": [
+        "Each cheap layer exists so the expensive one sees fewer items",
+        "Cost is set by what reaches the heavy ranker, not by what enters"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Latency budget",
+      "items": [
+        "Server-side ranking gets ~300 ms at P99",
+        "The heavy ranker owns the largest share of it"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "What stays off the critical path",
+      "items": [
+        "Ads auction runs beside the organic pipeline",
+        "Corpus indexing and feature computation happen offline"
+      ]
+    }
+  ]
+}
