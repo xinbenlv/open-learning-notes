@@ -13,8 +13,9 @@ Site: **https://xinbenlv.github.io/open-learning-notes/**
 | # | Title | Languages | Open |
 |---|---|---|---|
 | 1 | **For You Algorithm Notes** · 𝕏「为你推荐」算法讲义 — how the For You feed ranks posts: the industry cascade, retrieval, Transformer ranking, re-ranking, blending, visibility filtering, with a linked funnel + latency panel, a foldable request-path map, a balance scale for score fusion and a queue-and-bouncer visibility demo. Based on the August 2026 open-source release of [xai-org/x-algorithm](https://github.com/xai-org/x-algorithm) (pinned to commit `45b48ba`). | 中文 / English (toggle top-right) | [Read online](https://xinbenlv.github.io/open-learning-notes/for-you-algorithm/) · [source](for-you-algorithm/index.html) |
+| 2 | **The Feynman Technique** · 费曼学习法 — seven animated handwritten slides: a knowledge/action taiji, drinking-straw example, five benefits, limitations, thanks, and a 20-topic wish list. | 中文 (default) / English | [Read online](https://xinbenlv.github.io/open-learning-notes/feynman/) · [English](https://xinbenlv.github.io/open-learning-notes/feynman/?lang=en) · [source](feynman/index.html) |
 
-Each note is a single self-contained HTML file: open it in any browser, no build step. Figures follow your light/dark theme.
+Each note has an HTML entry point and needs no build step. Keep accompanying assets beside the HTML when copying a note. Figures support light/dark themes. See [Feynman deck controls and local preview](feynman/README.md).
 
 ## System maps · 系统地图
 
