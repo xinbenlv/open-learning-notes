@@ -21,6 +21,8 @@ Each note has an HTML entry point and needs no build step. Keep accompanying ass
 
 Each note can carry interactive architecture maps rendered with [archify](https://github.com/tt-a1i/archify) from typed JSON specs (see [`for-you-algorithm/maps/`](for-you-algorithm/maps/)). Map B of the For You note links every service node to its source file in `xai-org/x-algorithm`, verified at the pinned commit.
 
+Each lecture should include a visible, keyboard-accessible link back to the collection homepage (`../` for a note one directory deep), with wording that follows its language selection. Keep that link outside recording content.
+
 ## How to participate · 如何参与
 
 - **Feynman PR** — you can explain a concept more simply, or make a figure teach a relationship better? Open a pull request. The first line of your PR should say *which concept you made simpler*.

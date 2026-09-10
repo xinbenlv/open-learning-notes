@@ -18,10 +18,12 @@ button{font:inherit;color:inherit;cursor:pointer;border:1px solid var(--line);ba
 .lesson-nav{display:flex;gap:6px;align-items:center}.lesson-nav a{color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid transparent;border-radius:7px;font-size:12px;white-space:nowrap}.lesson-nav a[aria-current="page"]{color:var(--ink);border-color:var(--line);background:var(--chrome)}.lesson-nav a:hover{color:var(--blue)}.top{flex-wrap:wrap}.source-note{font-size:11px;color:var(--muted);margin-top:14px}.source-note a{color:inherit}.recording .source-note{display:none}.water{stroke:var(--blue);stroke-width:12;fill:none;stroke-linecap:round}.water.draw{--dur:2100ms;--delay:1300ms}.pressure{stroke:var(--red)}
 .board svg[hidden]{display:none}
 .cover-portrait{filter:url(#cover-ink)}.dark .cover-portrait{filter:url(#cover-ink) invert(1);opacity:.92}
+.notes-home{font-size:12px}.notes-home a{color:var(--muted);text-decoration:none}.notes-home a:hover{color:var(--blue);text-decoration:underline}.notes-home a:focus-visible{outline:3px solid var(--blue);outline-offset:4px}
 </style>
 </head>
 <body>
 <main class="shell">
+ <nav class="notes-home top"><a href="../">← 全部讲义 · Open Learning Notes</a></nav>
  <header class="top"><div class="identity"><i></i>把它讲明白 <span style="color:var(--muted)">/ 学习笔记</span></div><nav class="lesson-nav" aria-label="课件页面"><a href="#cover" data-lesson="0">00 封面</a><a href="#taiji" data-lesson="1" aria-current="page">01 知行太极</a><a href="#straw" data-lesson="2">02 吸管喝水</a><a href="#benefits" data-lesson="3">03 方法的作用</a><a href="#limits" data-lesson="4">04 缺点与局限</a><a href="#outro" data-lesson="5">05 谢谢关注</a><a href="#topics" data-lesson="6">06 Topic Wish List</a></nav><div class="tools"><button id="language" type="button" lang="en" aria-label="Switch to English">English</button><button id="theme" aria-pressed="false">换成黑板</button><button id="camera" aria-pressed="true">头像占位：开</button><button id="record">录制视图 ↗</button></div></header>
  <div class="board" id="board" tabindex="0" role="button" aria-label="点击白板或按空格，展开下一步">
  <svg id="lesson-0" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" aria-labelledby="cover-title cover-desc">

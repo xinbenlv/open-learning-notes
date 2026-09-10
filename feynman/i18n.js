@@ -1,4 +1,5 @@
 const english = {
+  "← 全部讲义 · Open Learning Notes": "← All notes · Open Learning Notes",
   "中英切换": "Switch language",
   "把它讲明白 · 知行太极": "Explain It Clearly · Knowledge & Action",
   "把它讲明白": "Explain It Clearly",

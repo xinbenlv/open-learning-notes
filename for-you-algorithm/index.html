@@ -13,6 +13,9 @@
   body { margin: 0; font-family: system-ui, sans-serif; }
   img { max-width: 100%; }
   [hidden] { display: none !important; }
+  .notes-home { margin-right: auto; font-size: .8rem; pointer-events: auto; background: var(--bg); padding: 6px 10px; border-radius: 6px; }
+  .notes-home:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .lang-bar { gap: 12px; flex-wrap: wrap; }
 </style>
 <style>
   :root {
@@ -671,6 +674,7 @@
 <div class="wrap">
 
 <div class="lang-bar">
+  <a class="notes-home" href="../"><span class="lang" data-lang="zh">← 全部讲义 · Open Learning Notes</span><span class="lang" data-lang="en" hidden>← All notes · Open Learning Notes</span></a>
   <div class="seg" role="group" aria-label="Language / 语言">
     <button type="button" data-set-lang="zh" aria-pressed="true">中文</button>
     <button type="button" data-set-lang="en" aria-pressed="false">English</button>
