@@ -14,7 +14,7 @@ Site: **https://xinbenlv.github.io/open-learning-notes/**
 |---|---|---|---|
 | 1 | **For You Algorithm Notes** · 𝕏「为你推荐」算法讲义 — how the feed ranks posts, from retrieval to visibility filtering, with interactive figures. Based on the August 2026 open-source release of [xai-org/x-algorithm](https://github.com/xai-org/x-algorithm) (pinned to commit `45b48ba`). | 中文 / English (toggle top-right) | [Read online](https://xinbenlv.github.io/open-learning-notes/for-you-algorithm/) · [source](for-you-algorithm/index.html) |
 | 2 | **The Feynman Technique** · 费曼学习法 — seven animated handwritten slides: a knowledge/action taiji, drinking-straw example, five benefits, limitations, thanks, and a 20-topic wish list. | 中文 (default) / English | [Read online](https://xinbenlv.github.io/open-learning-notes/feynman/) · [English](https://xinbenlv.github.io/open-learning-notes/feynman/?lang=en) · [source](feynman/index.html) |
-| 3 | **AIGC-SEO Loop** · 内容增长闭环 — authorize, calibrate, then operate with audits; five diagrams and ten collapsible sections. | 中文 / English | [中文](https://xinbenlv.github.io/open-learning-notes/aigc-seo-loop/?lang=zh) · [English](https://xinbenlv.github.io/open-learning-notes/aigc-seo-loop/?lang=en) · [source](aigc-seo-loop/index.html) |
+| 3 | **AIGC-SEO Loop** · 内容增长闭环 — authorize, calibrate, then operate with audits; five diagrams and a bilingual external scaffolding checklist with expandable checks. | 中文 / English | [中文](https://xinbenlv.github.io/open-learning-notes/aigc-seo-loop/?lang=zh) · [English](https://xinbenlv.github.io/open-learning-notes/aigc-seo-loop/?lang=en) · [source](aigc-seo-loop/index.html) |
 
 Each note has an HTML entry point and needs no build step. Keep accompanying assets beside the HTML when copying a note. Theme behavior varies by note. See [Feynman deck controls and local preview](feynman/README.md).
 
@@ -44,3 +44,6 @@ Each lecture should include a visible, keyboard-accessible link back to the coll
 ## License · 许可
 
 The notes (text and figures) are licensed under [CC BY 4.0](LICENSE). Code and parameter values quoted from `xai-org/x-algorithm` remain under their original Apache 2.0 license and are credited inline. Third-party libraries (D3) are loaded from CDN under their own licenses.
+
+The scaffolding section is a manual reading aid, not an automated audit. Checks reset on reload.
+Its marked HTML block is synchronized from OPC; see [sync instructions](https://github.com/xinbenlv/opc/blob/main/skills/aigc-seo/assets/scaffolding-sync.md).
